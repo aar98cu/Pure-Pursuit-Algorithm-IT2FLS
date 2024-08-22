@@ -4,6 +4,7 @@ from vehicle import *
 import math
 import numpy as np
 import time
+import matplotlib.pyplot as plt
 
 def fit_interface_size(sender, app_data):
     global width
@@ -27,8 +28,31 @@ def update_trayectoria(sender, app_data):
     dpg.fit_axis_data("yaxis")
 
 def update_control(sender, app_data):
-    seleccion = app_data  # El nombre de la trayectoria seleccionada
-    x_data, y_data = zip(*control[seleccion])  # Extraer puntos x, y de la trayectoria seleccionada
+    global control_func
+    selected_control = app_data
+    
+    control_func = control_functions[selected_control]
+
+def geometric_lateral_control(params):
+    delta = math.atan2((2*1.3*math.sin(params.get("yaw_error", 0)))/params.get("ld", 0),1)
+    return delta
+
+def based_on_error(params):
+    delta = params.get("yaw_error", 0)
+    return delta
+
+def it2fls(params):
+    return
+
+def t1fls(params):
+    return
+
+control_functions = {
+    "Geometric Lateral Control": geometric_lateral_control,
+    "Based on error": based_on_error,
+    "IT2FLS": it2fls,
+    "T1FLS": t1fls
+}
     
 def run_simulation():
     ego =  Mathematic_Model(0,0,1.5708,0)
@@ -44,13 +68,11 @@ def run_simulation():
     traj_ego_x = []
     traj_ego_y = []
 
-    elm1 = []
-    elm2 = []
+    elm1 = [0]
+    elm2 = [0]
+    hem = [0]
 
     while getDistance([ego.x, ego.y], goal) > 1:
-        noisy_x = ego.x + np.random.normal(-noise_std_dev, noise_std_dev)
-        noisy_y = ego.y + np.random.normal(-noise_std_dev, noise_std_dev)
-        #Agregar el ruido
         target_point, current, index = traj.getTargetPoint([ego.x, ego.y])
 
         # use PID to control the vehicle
@@ -58,72 +80,57 @@ def run_simulation():
         vel_err = math.sqrt(math.pow(target_point[1] - ego.y,2)+math.pow(target_point[0] - ego.x,2))-L
         acc = PI_acc.control(vel_err)
 
-        yaw_err = math.atan2(target_point[1] - ego.y, target_point[0] - ego.x) - ego.yaw
-        """
-        if (target_point[0]<ego.x and target_point[1]>ego.y):
-            yaw_err = (math.atan(abs(target_point[0]-ego.x)/abs(target_point[1]-ego.y))*180/math.pi+90)*math.pi/180 - ego.yaw
-        elif (target_point[0]<ego.x and target_point[1]<ego.y):
-            yaw_err = (math.atan(abs(target_point[1]-ego.y)/abs(target_point[0]-ego.x))*180/math.pi+180)*math.pi/180 - ego.yaw
-        elif(target_point[1]<ego.y and target_point[0]>ego.x):
-            yaw_err = (math.atan(abs(target_point[0]-ego.x)/abs(target_point[1]-ego.y))*180/math.pi+270)*math.pi/180 - ego.yaw
-        else:
-            yaw_err = (math.atan(abs(target_point[1]-ego.y)/abs(target_point[0]-ego.x))*180/math.pi)*math.pi/180 - ego.yaw
-        """
-
-        #yaw_err = np.arctan2(np.sin(yaw_err), np.cos(yaw_err))
-
         distancias = np.sqrt((ruta[:, 0] - ego.x)**2 + (ruta[:, 1] - ego.y)**2)
         indice_punto_cercano = np.argmin(distancias)
+
+        yaw_err = math.atan2(target_point[1] - ego.y, target_point[0] - ego.x) - ego.yaw
+
+        yaw_err = np.arctan2(np.sin(yaw_err), np.cos(yaw_err))
         
-        # Calcular el error lateral
         if index > 0:
             elm1.append(current*math.sin(yaw_err))
             elm2.append(distancias[indice_punto_cercano]*math.sin(math.atan2(ruta[indice_punto_cercano, 1] - ego.y, ruta[indice_punto_cercano, 0] - ego.x) - ego.yaw))
-            #print(sum([abs(el1) for el1 in elm1])/len(elm1), sum([abs(el2) for el2 in elm2])/len(elm2))
+            hem.append(yaw_err)
 
-        delta = math.atan2((2*1.3*math.sin(yaw_err))/current,1)
+        params = {
+            "yaw_error": yaw_err,
+            "ld": current,
+        }
 
-        """
-        error_theta_g = yaw_err*180/math.pi
-        delta = calculo_volante.modelo(np.array([error_theta_g, (error_theta_g-error_theta_a)/0.2]))*math.pi/180
-        error_theta_a=error_theta_g
-        """
+        delta = np.clip(control_func(params), -0.698132, 0.698132)
 
-        #delta=math.atan(yaw_err*1.3/0.6870) #Quite la división de yaw_error entre el TM
-
-        #Volante usando el error de self.yaw como referencia  
-        #delta = yaw_err
-        
-        #Volante usando una ecuación de la literatura
-        #delta=math.atan2(1.3*(2.0/(L**2)*((target_point[1]-ego.y)*math.cos(yaw_err)-(target_point[0]-ego.x)*math.sin(yaw_err))),1)
-
-        #Volante usando un controlador PID basado en el error lateral
-        #delta = m(PI_yaw.control(yaw_err))
-        
-        #delta = np.arctan2(np.sin(yaw_err), np.cos(yaw_err))
-
-        #Volante usando una ecuación de la literatura - Enhanced Pure Pursuit Algorithm & Autonomous Driving
-        #delta=math.atan2((2*1.3*math.sin(yaw_err))/L,1)
-        #delta=math.atan2((2*1.3*math.sin(yaw_err))/current,1)
-
-        #Optimal Fuzzy... Alejandra Mancilla - No funciona
-        #delta = math.atan((WB*(ego.vel/WB*math.tan(ego.delta)))/(ego.vel+0.000000000000000001)) #Optimal Fuzzy... Alejandra Mancilla - No funciona
-        
-        if delta>0.698132:
-            delta=0.698132
-        elif delta<-0.698132:
-            delta=-0.698132
-
-        # move the vehicle
         ego.update(acc, delta)
 
-        # store the trajectory
         traj_ego_x.append(ego.x)
         traj_ego_y.append(ego.y)
 
-        dpg.add_line_series(traj_ego_x, traj_ego_y,parent="yaxis")
+        dpg.set_value("x", f"X: {ego.x:.2f}m")
+        dpg.set_value("y", f"Y: {ego.y:.2f}m")
+        dpg.set_value("theta", f"Theta: {(ego.yaw*180/math.pi):.2f}°")
+        dpg.set_value("v", f"V: {ego.vel:.2f}m/s")
+        dpg.set_value("le1", f"Lateral error 1: {elm1[-1]:.2f}m")
+        dpg.set_value("mle1", f"Mean lateral error 1: {(np.mean(np.square(elm1))):.2f}m")
+        dpg.set_value("le2", f"Lateral error 2: {elm2[-1]:.2f}m")
+        dpg.set_value("mle2", f"Mean lateral error 2: {(np.mean(np.square(elm2))):.2f}m")
+        dpg.set_value("he", f"Heading error: {(yaw_err*180/math.pi):.2f}°")
+        dpg.set_value("mhe", f"Mean heading error 1: {(np.mean(np.square(hem))):.2f}°")
+
         update_vehicle(ego.x, ego.y, ego.yaw, delta)
+        dpg.set_value("reference_plot", [traj_ego_x, traj_ego_y])
+        dpg.bind_item_theme("reference_plot", "reference_theme")
+        dpg.fit_axis_data("xaxis")
+        dpg.fit_axis_data("yaxis")
         time.sleep(dt)
+
+    plt.figure()
+    plt.plot(elm1, label='Error lateral método 1')
+    plt.plot(elm2, label='Error lateral método 2')
+    plt.xlabel('Iteración')
+    plt.ylabel('Error lateral')
+    plt.legend()
+    plt.grid(True)
+    plt.title('Errores laterales durante el seguimiento de la trayectoria')
+    plt.show()
 
 def getDistance(p1, p2):
     dx = p1[0] - p2[0]
@@ -149,8 +156,8 @@ class Mathematic_Model:
         self.xa = self.x
         self.ya = self.y
         self.delta=delta
-        self.x += self.vel * math.cos(self.yaw) * dt
-        self.y += self.vel * math.sin(self.yaw) * dt
+        self.x += self.vel * math.cos(self.yaw) * dt #+ np.random.normal(-noise_std_dev, noise_std_dev)
+        self.y += self.vel * math.sin(self.yaw) * dt #+ np.random.normal(-noise_std_dev, noise_std_dev)
         self.yaw += self.vel * math.tan(self.delta) / WB * dt
         self.vel = acc
         #self.vel += acc * dt

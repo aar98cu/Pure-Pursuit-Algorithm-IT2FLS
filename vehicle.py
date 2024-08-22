@@ -97,7 +97,6 @@ def plotVehicle(x, y, yaw, steer=0.0):
         parent="yaxis",
         tag="rl_wheel"
     )
-    #dpg.add_scatter_series([x], [y], parent="yaxis", tag="origin")
     dpg.draw_circle(center=(x, y), radius=0.15, color=(255, 0, 0, 255), fill=(255, 0, 0, 255), parent="overlay_drawlist")
 
 
@@ -106,7 +105,6 @@ def plotVehicle(x, y, yaw, steer=0.0):
     dpg.bind_item_theme("rr_wheel", "vehicle_theme")
     dpg.bind_item_theme("fl_wheel", "vehicle_theme")
     dpg.bind_item_theme("rl_wheel", "vehicle_theme")
-    #dpg.bind_item_theme("origin", "dot_theme")
 
 def update_vehicle(x, y, yaw, steer=0.0):
     """
@@ -199,6 +197,3 @@ def update_vehicle(x, y, yaw, steer=0.0):
         x = np.array(rl_wheel[0, :]).flatten(),
         y = np.array(rl_wheel[1, :]).flatten(),
     )
-    #dpg.add_scatter_series([x], [y], parent="yaxis", tag="origin")
-    #dpg.draw_circle(center=(x, y), radius=0.15, color=(255, 0, 0, 255), fill=(255, 0, 0, 255), parent="overlay_drawlist")
-    #dpg.bind_item_theme("origin", "dot_theme")
