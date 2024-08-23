@@ -14,10 +14,13 @@ with dpg.window(label="Pure Pursuit Algorithm Simulation", tag="window"):
             dpg.add_text("Control")
             dpg.add_combo(control, default_value="Select control", width=-1, callback=update_control)
 
+            dpg.add_checkbox(label="Simulate with noise", tag="noise_checkbox", default_value=False)
+
             dpg.add_text("X: ?", tag="x")
             dpg.add_text("Y: ?", tag="y")
             dpg.add_text("Theta: ?", tag="theta")
             dpg.add_text("V: ?", tag="v")
+            dpg.add_text("Delta: ?", tag="delta")
             dpg.add_text("Lateral error 1: ?", tag="le1")
             dpg.add_text("Mean lateral error 1: ?", tag="mle1")
             dpg.add_text("Lateral error 2: ?", tag="le2")
@@ -28,8 +31,8 @@ with dpg.window(label="Pure Pursuit Algorithm Simulation", tag="window"):
             dpg.add_button(label="Comenzar Simulación", callback=run_simulation, width=150, height=50)
 
         with dpg.plot(tag="right_panel", width=int(0.77 * 1500), height=int(800*0.9), equal_aspects=True):
-            dpg.add_plot_axis(dpg.mvXAxis, label="Norte", tag="xaxis")
-            dpg.add_plot_axis(dpg.mvYAxis, label="Este", tag="yaxis")
+            dpg.add_plot_axis(dpg.mvXAxis, label="Este", tag="xaxis")
+            dpg.add_plot_axis(dpg.mvYAxis, label="Norte", tag="yaxis")
             plotVehicle(0,0,1.5708,0)
             dpg.add_line_series([], [], parent="yaxis", tag="trayectoria_plot")
             dpg.add_line_series([], [], parent="yaxis", tag="reference_plot")

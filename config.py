@@ -1,4 +1,5 @@
 import dearpygui.dearpygui as dpg
+import numpy as np
 
 width = 1500
 height = 800
@@ -40,6 +41,21 @@ trayectorias = {
 }
 
 paths = ["Path 1", "Path 2", "Path 3", "Path 4"]
+
+MF_parametros_it2 = np.array([[0.091044, 0.03161, 1.0488, -0.21707, 0.15446],
+    [0.076239, 0.18334, 1.0264, 0.37033, 0.78535],
+    [1.3177, 1.5725, 1.0069, -4.618, 0.45283],
+    [1.3091, 1.577, 1.0135, 1.9458, 0.46793]])
+
+C_parametros_it2 = np.array([[-0.50804, 0.12629, -0.44446],
+    [1.8885, -0.18666, 0.070893],
+    [1.8154, -0.1777, 0.19092],
+    [0.79655, 0.081774, -0.049842]])
+
+Reglas_it2 = np.array([[2, 4],
+    [2, 5],
+    [3, 4],
+    [3, 5]])
 
 with dpg.theme(tag="vehicle_theme"):
     with dpg.theme_component(dpg.mvLineSeries):
