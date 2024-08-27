@@ -35,8 +35,13 @@ def based_on_error():
     delta = params["yaw_error"]
     return delta
 
-def it2fls():
-    steering = IT2FLS(n_entradas=2, n_mf=3, n_reglas=9, nodos=np.zeros((36,2)))
+def it2fls_2mf():
+    steering = IT2FLS(n_entradas=2, n_mf=2, n_rules=4, nodos=np.zeros((19,2)), mf_p=MF_parameters_it2mf2, rules=Rules_it2mf2, c_p=C_parameters_it2mf2)
+    delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
+    return delta
+
+def it2fls_3mf():
+    steering = IT2FLS(n_entradas=2, n_mf=3, n_rules=9, nodos=np.zeros((36,2)), mf_p=MF_parameters_it2mf3, rules=Rules_it2mf3, c_p=C_parameters_it2mf3)
     delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
     return delta
 
@@ -52,7 +57,8 @@ def update_control(sender, app_data):
 control_functions = {
     "Geometric Lateral Control": geometric_lateral_control,
     "Based on error": based_on_error,
-    "IT2FLS": it2fls,
+    "IT2FLS with 2MF": it2fls_2mf,
+    "IT2FLS with 3MF": it2fls_3mf,
     "T1FLS": t1fls
 }
 
@@ -270,11 +276,14 @@ class Trajectory:
         return self.getPoint(target_idx), curr_dist, self.last_idx
     
 class IT2FLS:
-    def __init__(self, n_entradas=2, n_mf=2, n_reglas=4, nodos=np.zeros((19,2))):
+    def __init__(self, n_entradas=2, n_mf=2, n_rules=4, nodos=np.zeros((19,2)), mf_p=MF_parameters_it2mf2, rules=Rules_it2mf2, c_p=C_parameters_it2mf2):
         self.n_entradas = n_entradas
         self.n_mf = n_mf
-        self.n_reglas = n_reglas
+        self.n_rules = n_rules
         self.nodos = nodos
+        self.MF_parametros_it2 = mf_p
+        self.Reglas_it2 = rules
+        self.C_parametros_it2 = c_p
 
     def model(self,entradas):
         self.nodos[0:self.n_entradas,0]=entradas
@@ -283,16 +292,16 @@ class IT2FLS:
             for j in range(0,self.n_mf):
                 ind=self.n_entradas+i*self.n_mf+j
                 x = entradas[i]
-                pb = MF_parametros_it2[i*self.n_mf+j,2]
-                pc = MF_parametros_it2[i*self.n_mf+j,3]
-                pai = MF_parametros_it2[i*self.n_mf+j,0]
+                pb = self.MF_parametros_it2[i*self.n_mf+j,2]
+                pc = self.MF_parametros_it2[i*self.n_mf+j,3]
+                pai = self.MF_parametros_it2[i*self.n_mf+j,0]
                 tmp1i = (x - pc)/pai
                 if tmp1i == 0:
                     tmp2i=0
                 else:
                     tmp2i = (tmp1i*tmp1i)**pb
-                self.nodos[ind,0]=MF_parametros_it2[i*self.n_mf+j,4]/(1+tmp2i)
-                pas = MF_parametros_it2[i*self.n_mf+j,1]
+                self.nodos[ind,0]=self.MF_parametros_it2[i*self.n_mf+j,4]/(1+tmp2i)
+                pas = self.MF_parametros_it2[i*self.n_mf+j,1]
                 tmp1s = (x - pc)/pas
                 if tmp1s == 0:
                     tmp2s=0
@@ -301,13 +310,13 @@ class IT2FLS:
                 self.nodos[ind,1]=1/(1+tmp2s)
 
         st=self.n_entradas+self.n_entradas*self.n_mf
-        for i in range(st,st+self.n_reglas):
-            self.nodos[i,0]=np.cumprod(self.nodos[Reglas_it2[i-st,:],0])[-1]
-            self.nodos[i,1]=np.cumprod(self.nodos[Reglas_it2[i-st,:],1])[-1]
+        for i in range(st,st+self.n_rules):
+            self.nodos[i,0]=np.cumprod(self.nodos[self.Reglas_it2[i-st,:],0])[-1]
+            self.nodos[i,1]=np.cumprod(self.nodos[self.Reglas_it2[i-st,:],1])[-1]
 
         st=self.n_entradas+self.n_entradas*self.n_mf
-        wi=self.nodos[st:st+self.n_reglas,0]
-        ws=self.nodos[st:st+self.n_reglas,1]
+        wi=self.nodos[st:st+self.n_rules,0]
+        ws=self.nodos[st:st+self.n_rules,1]
 
         wi_orig = wi.copy()
         wi = np.sort(wi)
@@ -319,10 +328,10 @@ class IT2FLS:
 
         l=0
         r=0
-        Xl=np.zeros(self.n_reglas)
-        Xr=np.zeros(self.n_reglas)
+        Xl=np.zeros(self.n_rules)
+        Xr=np.zeros(self.n_rules)
 
-        for i in range(0,self.n_reglas-1):
+        for i in range(0,self.n_rules-1):
             if wi[i]<=yi and yi<=wi[i+1]:
                 l=i
             if ws[i]<=ys and ys<=ws[i+1]:
@@ -332,9 +341,9 @@ class IT2FLS:
         Xr = np.divide(np.concatenate((wi[0:r+1], ws[r+1:]), axis=0),np.sum(np.concatenate((wi[0:r+1], ws[r+1:]), axis=0)))
         X = ((Xl+Xr)/2)[order]
 
-        st=self.n_entradas+self.n_entradas*self.n_mf+2*self.n_reglas
-        for i in range(0,self.n_reglas):
-           self.nodos[i+st,0] = X[i]*(np.sum(C_parametros_it2[i,0:-1]*entradas)+C_parametros_it2[i,-1])
+        st=self.n_entradas+self.n_entradas*self.n_mf+2*self.n_rules
+        for i in range(0,self.n_rules):
+           self.nodos[i+st,0] = X[i]*(np.sum(self.C_parametros_it2[i,0:-1]*entradas)+self.C_parametros_it2[i,-1])
 
-        y = np.sum(self.nodos[-self.n_reglas-1:-1,0])
+        y = np.sum(self.nodos[-self.n_rules-1:-1,0])
         return y
