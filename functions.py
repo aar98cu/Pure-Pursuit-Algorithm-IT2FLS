@@ -6,6 +6,7 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
+# Adjust the size of the interface
 def fit_interface_size(sender, app_data):
     global width
     global height
@@ -18,6 +19,7 @@ def fit_interface_size(sender, app_data):
     dpg.configure_item("left_panel", width=int(width * 0.2), height=40)
     dpg.configure_item("right_panel", width=int(width * 0.77), height=int(height*0.9))
 
+# Select and display the selected path
 def update_trayectoria(sender, app_data):
     seleccion = app_data
     x_data, y_data = zip(*trayectorias[seleccion])
@@ -27,33 +29,40 @@ def update_trayectoria(sender, app_data):
     dpg.fit_axis_data("xaxis")
     dpg.fit_axis_data("yaxis")
 
+# Function for steering wheel calculation by geometric lateral control
 def geometric_lateral_control():
     delta = math.atan2((2*1.3*math.sin(params["yaw_error"]))/params["ld"],1)
     return delta
 
+# Function for steering wheel calculation by error
 def based_on_error():
     delta = params["yaw_error"]
     return delta
 
+# Function for steering wheel calculation by IT2FLS with 2 MF
 def it2fls_2mf():
     steering = IT2FLS(n_entradas=2, n_mf=2, n_rules=4, nodos=np.zeros((19,2)), mf_p=MF_parameters_it2mf2, rules=Rules_it2mf2, c_p=C_parameters_it2mf2)
     delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
     return delta
 
+# Function for steering wheel calculation by IT2FLS with 3 MF
 def it2fls_3mf():
     steering = IT2FLS(n_entradas=2, n_mf=3, n_rules=9, nodos=np.zeros((36,2)), mf_p=MF_parameters_it2mf3, rules=Rules_it2mf3, c_p=C_parameters_it2mf3)
     delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
     return delta
 
+# Function for steering wheel calculation by T1FLS with 2 MF
 def t1fls():
     return
 
+# Update the selected control type
 def update_control(sender, app_data):
     global control_func
     selected_control = app_data
     
     control_func = control_functions[selected_control]
 
+# Dictionary of the different types of control
 control_functions = {
     "Geometric Lateral Control": geometric_lateral_control,
     "Based on error": based_on_error,
@@ -62,16 +71,7 @@ control_functions = {
     "T1FLS": t1fls
 }
 
-def plot_lateral_error(elm2):
-    plt.figure()
-    plt.plot(elm2, label='Lateral error')
-    plt.xlabel('Samples')
-    plt.ylabel('Lateral error in m')
-    plt.legend()
-    plt.grid(True)
-    plt.title('Lateral errors in path following')
-    plt.show()
-    
+# Function to run the simulation of the vehicle on the selected route with the chosen control    
 def run_simulation():
     ego =  Mathematic_Model(0,0,1.5708)
 
@@ -100,7 +100,7 @@ def run_simulation():
         while getDistance([ego.x, ego.y], goal) > 1 or index<len(x_data)-2:
             target_point, current, index = traj.getTargetPoint([ego.x, ego.y])
 
-            vel_err = math.sqrt(math.pow(target_point[1] - ego.y,2)+math.pow(target_point[0] - ego.x,2))-L
+            vel_err = math.sqrt(math.pow(target_point[1] - ego.y,2)+math.pow(target_point[0] - ego.x,2))-look_ahead
             acc = np.clip(PI_acc.control(vel_err), 0, dpg.get_value("speed_slider"))
 
             distances = np.sqrt((ruta[:, 0] - ego.x)**2 + (ruta[:, 1] - ego.y)**2)
@@ -180,11 +180,13 @@ def run_simulation():
     plt.tight_layout()
     plt.show()
 
+# Calculate the distance between two points
 def getDistance(p1, p2):
     dx = p1[0] - p2[0]
     dy = p1[1] - p2[1]
     return math.hypot(dx, dy)
 
+# Functions of the Mathematical Bicycle Model
 class Mathematic_Model:
     def __init__(self, x, y, yaw, vel=0, delta=0):
         """
@@ -226,6 +228,7 @@ class Mathematic_Model:
         #self.vel += acc * dt
         #self.vel = 1
 
+# PI controller functions
 class PI:
     def __init__(self, kp=1.0, ki=0.1):
         """
@@ -253,6 +256,7 @@ class PI:
         output = self.Pterm + self.ki * self.Iterm
         return output
 
+# Functions of vehicle trajectory calculation
 class Trajectory:
     def __init__(self, traj_x, traj_y):
         self.traj_x = traj_x
@@ -267,14 +271,15 @@ class Trajectory:
         target_point = self.getPoint(target_idx)
         curr_dist = getDistance(pos, target_point)
 
-        while curr_dist < L and target_idx < len(self.traj_x) - 1:
+        while curr_dist < look_ahead and target_idx < len(self.traj_x) - 1:
             target_idx += 1
             target_point = self.getPoint(target_idx)
             curr_dist = getDistance(pos, target_point)
             
         self.last_idx = target_idx
         return self.getPoint(target_idx), curr_dist, self.last_idx
-    
+
+# IT2 model adjustable to any number of inputs and membership functions  
 class IT2FLS:
     def __init__(self, n_entradas=2, n_mf=2, n_rules=4, nodos=np.zeros((19,2)), mf_p=MF_parameters_it2mf2, rules=Rules_it2mf2, c_p=C_parameters_it2mf2):
         self.n_entradas = n_entradas

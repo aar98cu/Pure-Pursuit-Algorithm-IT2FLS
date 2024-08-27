@@ -4,6 +4,7 @@ from config import *
 from vehicle import *
 from functions import *
 
+#Interface
 with dpg.window(label="Pure Pursuit Algorithm Simulation", tag="window"):
     dpg.bind_item_theme("window", "interface_theme")
     with dpg.group(horizontal=True):
