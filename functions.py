@@ -27,20 +27,20 @@ def update_trayectoria(sender, app_data):
     dpg.fit_axis_data("xaxis")
     dpg.fit_axis_data("yaxis")
 
-def geometric_lateral_control(params):
-    delta = math.atan2((2*1.3*math.sin(params.get("yaw_error", 0)))/params.get("ld", 0),1)
+def geometric_lateral_control():
+    delta = math.atan2((2*1.3*math.sin(params["yaw_error"]))/params["ld"],1)
     return delta
 
-def based_on_error(params):
-    delta = params.get("yaw_error", 0)
+def based_on_error():
+    delta = params["yaw_error"]
     return delta
 
-def it2fls(params):
-    steering = IT2FLS()
-    delta = steering.model(np.array([params.get("yaw_error", 0), params.get("d_yaw_error", 0)]))
+def it2fls():
+    steering = IT2FLS(n_entradas=2, n_mf=3, n_reglas=9, nodos=np.zeros((36,2)))
+    delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
     return delta
 
-def t1fls(params):
+def t1fls():
     return
 
 def update_control(sender, app_data):
@@ -55,9 +55,19 @@ control_functions = {
     "IT2FLS": it2fls,
     "T1FLS": t1fls
 }
+
+def plot_lateral_error(elm2):
+    plt.figure()
+    plt.plot(elm2, label='Lateral error')
+    plt.xlabel('Samples')
+    plt.ylabel('Lateral error in m')
+    plt.legend()
+    plt.grid(True)
+    plt.title('Lateral errors in path following')
+    plt.show()
     
 def run_simulation():
-    ego =  Mathematic_Model(0,0,1.5708,0)
+    ego =  Mathematic_Model(0,0,1.5708)
 
     x_data, y_data = dpg.get_value("trayectoria_plot")
 
@@ -73,8 +83,11 @@ def run_simulation():
     elm1 = [0]
     elm2 = [0]
     hem = [0]
+    vel_list = []
+    delta_list = []
     index = 0
 
+    #Create the file name depending on the simulation type
     with open("./results/simulation.txt", "w") as file:
         file.write("mse_lateral_error,mse_heading_error\n")
         
@@ -82,52 +95,44 @@ def run_simulation():
             target_point, current, index = traj.getTargetPoint([ego.x, ego.y])
 
             vel_err = math.sqrt(math.pow(target_point[1] - ego.y,2)+math.pow(target_point[0] - ego.x,2))-L
-            acc = np.clip(PI_acc.control(vel_err), 0, 2)
+            acc = np.clip(PI_acc.control(vel_err), 0, dpg.get_value("speed_slider"))
 
-            distancias = np.sqrt((ruta[:, 0] - ego.x)**2 + (ruta[:, 1] - ego.y)**2)
-            indice_punto_cercano = np.argmin(distancias)
+            distances = np.sqrt((ruta[:, 0] - ego.x)**2 + (ruta[:, 1] - ego.y)**2)
+            index_near_point = np.argmin(distances)
 
             yaw_err = math.atan2(target_point[1] - ego.y, target_point[0] - ego.x) - ego.yaw
-
             yaw_err = np.arctan2(np.sin(yaw_err), np.cos(yaw_err))
             
-            if index > 0:
-                elm1.append(current*math.sin(yaw_err))
-                elm2.append(distancias[indice_punto_cercano]*math.sin(math.atan2(ruta[indice_punto_cercano, 1] - ego.y, ruta[indice_punto_cercano, 0] - ego.x) - ego.yaw))
-                hem.append(yaw_err)
-                file.write(f"{(np.mean(np.square(elm2)))},{(np.mean(np.square(hem)))}\n")
-
-            try:
-                params = {
-                    "yaw_error": yaw_err,
-                    "d_yaw_error": (hem[-1]-hem[-2])/dt,
-                    "ld": current,
-                }
-            except:
-                params = {
-                    "yaw_error": yaw_err,
-                    "d_yaw_error": 0,
-                    "ld": current,
-                }
-
-            delta = np.clip(control_func(params), -0.698132, 0.698132)
-
+            params["yaw_error"] = yaw_err
+            params["d_yaw_error"] = (hem[-1] - (hem[-2] if len(hem) > 1 else 0)) / dt
+            params["ld"] = current
+            delta = np.clip(control_func(), -0.698132, 0.698132)
+            
             ego.update(acc, delta)
 
             traj_ego_x.append(ego.x)
             traj_ego_y.append(ego.y)
 
+            #Usar np.arctan2(np.sin(yaw_err), np.cos(yaw_err)) para ajustar el error de orientación con el punto más cercano
+            elm1.append(current*math.sin(yaw_err))
+            elm2.append(distances[index_near_point]*math.sin(math.atan2(ruta[index_near_point, 1] - ego.y, ruta[index_near_point, 0] - ego.x) - ego.yaw))
+            hem.append(yaw_err)
+            vel_list.append(ego.vel)
+            delta_list.append(ego.delta)
+            file.write(f"{(np.mean(np.square(elm2)))},{(np.mean(np.square(hem)))}\n")
+
+            #Consider a function to update the interface
             dpg.set_value("x", f"X: {ego.x:.2f}m")
             dpg.set_value("y", f"Y: {ego.y:.2f}m")
             dpg.set_value("theta", f"Theta: {(ego.yaw*180/math.pi):.2f}°")
             dpg.set_value("v", f"V: {ego.vel:.2f}m/s")
             dpg.set_value("delta", f"Delta: {(delta*180/math.pi):.2f}°")
             dpg.set_value("le1", f"Lateral error 1: {elm1[-1]:.2f}m")
-            dpg.set_value("mle1", f"Mean lateral error 1: {(np.mean(np.square(elm1))):.2f}m")
+            dpg.set_value("mle1", f"MSE lateral 1: {(np.mean(np.square(elm1))):.2f}m")
             dpg.set_value("le2", f"Lateral error 2: {elm2[-1]:.2f}m")
-            dpg.set_value("mle2", f"Mean lateral error 2: {(np.mean(np.square(elm2))):.2f}m")
+            dpg.set_value("mle2", f"MSE lateral 2: {(np.mean(np.square(elm2))):.2f}m")
             dpg.set_value("he", f"Heading error: {(yaw_err*180/math.pi):.2f}°")
-            dpg.set_value("mhe", f"Mean heading error 1: {(np.mean(np.square(hem))):.2f}°")
+            dpg.set_value("mhe", f"MSE heading: {(np.mean(np.square(hem))):.2f}°")
             
             update_vehicle(ego.x, ego.y, ego.yaw, delta)
             dpg.set_value("reference_plot", [traj_ego_x, traj_ego_y])
@@ -136,15 +141,38 @@ def run_simulation():
             dpg.fit_axis_data("yaxis")
             time.sleep(dt)
 
-        plt.figure()
-        plt.plot(elm1, label='Error lateral método 1')
-        plt.plot(elm2, label='Error lateral método 2')
-        plt.xlabel('Iteración')
-        plt.ylabel('Error lateral')
-        plt.legend()
-        plt.grid(True)
-        plt.title('Errores laterales durante el seguimiento de la trayectoria')
-        plt.show()
+    #Create function to graph
+    plt.figure()
+    plt.subplot(2, 2, 1)
+    plt.plot(vel_list, label='Velocidad')
+    plt.xlabel('Samples')
+    plt.ylabel('Velocidad (m/s)')
+    plt.legend()
+    plt.grid(True)
+
+    plt.subplot(2, 2, 2)
+    plt.plot(delta_list, label='Ángulo de Dirección')
+    plt.xlabel('Samples')
+    plt.ylabel('Ángulo de Dirección (rad)')
+    plt.legend()
+    plt.grid(True)
+
+    plt.subplot(2, 2, 3)
+    plt.plot(elm2, label='Lateral Error')
+    plt.xlabel('Samples')
+    plt.ylabel('Lateral Error (m)')
+    plt.legend()
+    plt.grid(True)
+
+    plt.subplot(2, 2, 4)
+    plt.plot(hem, label='Heading Error')
+    plt.xlabel('Samples')
+    plt.ylabel('Heading Error (rad)')
+    plt.legend()
+    plt.grid(True)
+
+    plt.tight_layout()
+    plt.show()
 
 def getDistance(p1, p2):
     dx = p1[0] - p2[0]
@@ -159,6 +187,7 @@ class Mathematic_Model:
         :param y: float, y position
         :param yaw: float, vehicle heading
         :param vel: float, velocity
+        :param delta: float, steering orientation
         """
         self.x = x
         self.y = y
@@ -167,17 +196,27 @@ class Mathematic_Model:
         self.delta = delta
 
     def update(self, acc, delta):
-        self.xa = self.x
-        self.ya = self.y
-        self.delta=delta
         if dpg.get_value("noise_checkbox"):
+            delta_steering = delta - self.delta
+            if abs(delta_steering) > max_delta_steering:
+                delta_steering = max_delta_steering if delta_steering > 0 else -max_delta_steering
+            self.delta += delta_steering
+
             self.x += self.vel * math.cos(self.yaw) * dt + np.random.uniform(-noise_std_dev, noise_std_dev)
             self.y += self.vel * math.sin(self.yaw) * dt + np.random.uniform(-noise_std_dev, noise_std_dev)
+            self.yaw += self.vel * math.tan(self.delta) / WB * dt
+
+            delta_speed = acc - self.vel
+            if abs(delta_speed) > max_delta_speed:
+                delta_speed = max_delta_speed if delta_speed > 0 else -max_delta_speed
+            self.vel += delta_speed
         else:
+            self.delta=delta
             self.x += self.vel * math.cos(self.yaw) * dt
             self.y += self.vel * math.sin(self.yaw) * dt
-        self.yaw += self.vel * math.tan(self.delta) / WB * dt
-        self.vel = acc
+            self.yaw += self.vel * math.tan(self.delta) / WB * dt
+            self.vel = acc
+
         #self.vel += acc * dt
         #self.vel = 1
 
