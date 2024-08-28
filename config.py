@@ -3,7 +3,7 @@ import numpy as np
 
 # Interface parameters
 width = 1500
-height = 800
+height = 900
 
 # Vehicle parameters in meters
 LENGTH = 2.2
@@ -19,7 +19,7 @@ look_ahead = 1.3
 dt = 0.1
 noise_std_dev = 0.02
 target_vel = 2
-max_delta_speed = 0.1
+max_delta_speed = 0.05 #0.1
 max_delta_steering = 0.0523599
 
 # Control variables

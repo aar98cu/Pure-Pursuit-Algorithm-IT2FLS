@@ -73,6 +73,19 @@ control_functions = {
 
 # Function to run the simulation of the vehicle on the selected route with the chosen control    
 def run_simulation():
+    global max_delta_steering
+    global max_delta_speed
+    dpg.disable_item("speed_slider")
+    dpg.disable_item("noise_checkbox")
+    dpg.disable_item("run_button")
+    dpg.disable_item("path")
+    dpg.disable_item("control")
+    dpg.disable_item("max_steering_delta")
+    dpg.disable_item("max_speed_delta")
+
+    max_delta_steering = math.radians(dpg.get_value("max_steering_delta"))
+    max_delta_speed = dpg.get_value("max_speed_delta")
+
     ego =  Mathematic_Model(0,0,1.5708)
 
     x_data, y_data = dpg.get_value("trayectoria_plot")
@@ -86,15 +99,15 @@ def run_simulation():
     traj_ego_x = []
     traj_ego_y = []
 
-    elm1 = [0]
-    elm2 = [0]
-    hem = [0]
-    vel_list = []
+    lateral_error_list = [0]
+    heading_error_list = [0]
+    speed_list = []
     delta_list = []
     index = 0
 
-    #Create the file name depending on the simulation type
-    with open("./results/simulation.txt", "w") as file:
+    file_path = f'./results/{dpg.get_value("control")} in {dpg.get_value("path")} {"with noise" if dpg.get_value("noise_checkbox") else "without noise"} and speed {dpg.get_value("speed_slider")}.txt'    
+
+    with open(file_path, "w") as file:
         file.write("mse_lateral_error,mse_heading_error\n")
         
         while getDistance([ego.x, ego.y], goal) > 1 or index<len(x_data)-2:
@@ -105,12 +118,14 @@ def run_simulation():
 
             distances = np.sqrt((ruta[:, 0] - ego.x)**2 + (ruta[:, 1] - ego.y)**2)
             index_near_point = np.argmin(distances)
+            yaw_err_mp = math.atan2(ruta[index_near_point, 1] - ego.y, ruta[index_near_point, 0] - ego.x) - ego.yaw
+            yaw_err_mp = np.arctan2(np.sin(yaw_err_mp), np.cos(yaw_err_mp))
 
             yaw_err = math.atan2(target_point[1] - ego.y, target_point[0] - ego.x) - ego.yaw
             yaw_err = np.arctan2(np.sin(yaw_err), np.cos(yaw_err))
             
             params["yaw_error"] = yaw_err
-            params["d_yaw_error"] = (hem[-1] - (hem[-2] if len(hem) > 1 else 0)) / dt
+            params["d_yaw_error"] = (heading_error_list[-1] - (heading_error_list[-2] if len(heading_error_list) > 1 else 0)) / dt
             params["ld"] = current
             delta = np.clip(control_func(), -0.698132, 0.698132)
             
@@ -119,26 +134,22 @@ def run_simulation():
             traj_ego_x.append(ego.x)
             traj_ego_y.append(ego.y)
 
-            #Usar np.arctan2(np.sin(yaw_err), np.cos(yaw_err)) para ajustar el error de orientación con el punto más cercano
-            elm1.append(current*math.sin(yaw_err))
-            elm2.append(distances[index_near_point]*math.sin(math.atan2(ruta[index_near_point, 1] - ego.y, ruta[index_near_point, 0] - ego.x) - ego.yaw))
-            hem.append(yaw_err)
-            vel_list.append(ego.vel)
-            delta_list.append(ego.delta)
-            file.write(f"{(np.mean(np.square(elm2)))},{(np.mean(np.square(hem)))}\n")
+            lateral_error_list.append(distances[index_near_point]*math.sin(yaw_err_mp))
+            heading_error_list.append(yaw_err)
+            speed_list.append(ego.vel)
+            delta_list.append(math.degrees(ego.delta))
+            file.write(f"{(np.mean(np.square(lateral_error_list)))},{(math.degrees(np.mean(np.square(heading_error_list))))}\n")
 
             #Consider a function to update the interface
             dpg.set_value("x", f"X: {ego.x:.2f}m")
             dpg.set_value("y", f"Y: {ego.y:.2f}m")
-            dpg.set_value("theta", f"Theta: {(ego.yaw*180/math.pi):.2f}°")
+            dpg.set_value("theta", f"Theta: {math.degrees(ego.yaw):.2f}°")
             dpg.set_value("v", f"V: {ego.vel:.2f}m/s")
-            dpg.set_value("delta", f"Delta: {(delta*180/math.pi):.2f}°")
-            dpg.set_value("le1", f"Lateral error 1: {elm1[-1]:.2f}m")
-            dpg.set_value("mle1", f"MSE lateral 1: {(np.mean(np.square(elm1))):.2f}m")
-            dpg.set_value("le2", f"Lateral error 2: {elm2[-1]:.2f}m")
-            dpg.set_value("mle2", f"MSE lateral 2: {(np.mean(np.square(elm2))):.2f}m")
-            dpg.set_value("he", f"Heading error: {(yaw_err*180/math.pi):.2f}°")
-            dpg.set_value("mhe", f"MSE heading: {(np.mean(np.square(hem))):.2f}°")
+            dpg.set_value("delta", f"Delta: {math.degrees(delta):.2f}°")
+            dpg.set_value("le", f"Lateral error: {lateral_error_list[-1]:.2f}m")
+            dpg.set_value("msele", f"MSE lateral: {(np.mean(np.square(lateral_error_list))):.2f}m")
+            dpg.set_value("he", f"Heading error: {math.degrees(yaw_err):.2f}°")
+            dpg.set_value("msehe", f"MSE heading: {math.degrees(np.mean(np.square(heading_error_list))):.2f}°")
             
             update_vehicle(ego.x, ego.y, ego.yaw, delta)
             dpg.set_value("reference_plot", [traj_ego_x, traj_ego_y])
@@ -147,33 +158,41 @@ def run_simulation():
             dpg.fit_axis_data("yaxis")
             time.sleep(dt)
 
+    dpg.enable_item("speed_slider")
+    dpg.enable_item("noise_checkbox")
+    dpg.enable_item("run_button")
+    dpg.enable_item("path")
+    dpg.enable_item("control")
+    dpg.enable_item("max_steering_delta")
+    dpg.enable_item("max_speed_delta")
+
     #Create function to graph
     plt.figure()
     plt.subplot(2, 2, 1)
-    plt.plot(vel_list, label='Velocidad')
+    plt.plot(speed_list, label='Speed')
     plt.xlabel('Samples')
-    plt.ylabel('Velocidad (m/s)')
+    plt.ylabel('Speed (m/s)')
     plt.legend()
     plt.grid(True)
 
     plt.subplot(2, 2, 2)
-    plt.plot(delta_list, label='Ángulo de Dirección')
+    plt.plot(delta_list, label='Steering')
     plt.xlabel('Samples')
-    plt.ylabel('Ángulo de Dirección (rad)')
+    plt.ylabel('Steering (degrees)')
     plt.legend()
     plt.grid(True)
 
     plt.subplot(2, 2, 3)
-    plt.plot(elm2, label='Lateral Error')
+    plt.plot(lateral_error_list, label='Lateral Error')
     plt.xlabel('Samples')
     plt.ylabel('Lateral Error (m)')
     plt.legend()
     plt.grid(True)
 
     plt.subplot(2, 2, 4)
-    plt.plot(hem, label='Heading Error')
+    plt.plot([math.degrees(angle) for angle in heading_error_list], label='Heading Error')
     plt.xlabel('Samples')
-    plt.ylabel('Heading Error (rad)')
+    plt.ylabel('Heading Error (degreess)')
     plt.legend()
     plt.grid(True)
 
@@ -212,6 +231,7 @@ class Mathematic_Model:
 
             self.x += self.vel * math.cos(self.yaw) * dt + np.random.uniform(-noise_std_dev, noise_std_dev)
             self.y += self.vel * math.sin(self.yaw) * dt + np.random.uniform(-noise_std_dev, noise_std_dev)
+
             self.yaw += self.vel * math.tan(self.delta) / WB * dt
 
             delta_speed = acc - self.vel
