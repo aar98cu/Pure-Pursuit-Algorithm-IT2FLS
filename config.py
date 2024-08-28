@@ -23,7 +23,7 @@ max_delta_speed = 0.05 #0.1
 max_delta_steering = 0.0523599
 
 # Control variables
-control = ["Geometric Lateral Control", "Based on error", "IT2FLS with 2MF", "IT2FLS with 3MF", "T1FLS"]
+control = ["Geometric Lateral Control", "Based on error", "IT2FLS with 2MF", "IT2FLS with 3MF", "T1FLS with 2MF"]
 control_func = None
 
 # Control parameters
@@ -98,6 +98,22 @@ Rules_it2mf3 = np.array([[2, 5],
     [4, 5],
     [4, 6],
     [4, 7]])
+
+# Constants of the fuzzy T1 controller with 2 membership functions
+MF_parameters_t1mf2 = np.array([[0.5167, 1.985, -0.3764],
+    [0.4749, 2.015, 0.2903],
+    [3.288, 2.005, -4.614],
+    [3.287, 1.994, 1.952]])
+
+C_parameters_t1mf2 = np.array([[-12.44, 0.6913, -6.652],
+    [-1.47, -0.1517, -1.5],
+    [-9.214, -3.533, 2.268],
+    [-1.3, -0.0705, 2.163]])
+
+Rules_t1mf2 = np.array([[0, 2],
+    [0, 3],
+    [1, 2],
+    [1, 3],])
 
 # Vehicle theme
 with dpg.theme(tag="vehicle_theme"):
