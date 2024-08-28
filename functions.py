@@ -41,19 +41,21 @@ def based_on_error():
 
 # Function for steering wheel calculation by IT2FLS with 2 MF
 def it2fls_2mf():
-    steering = IT2FLS(n_entradas=2, n_mf=2, n_rules=4, nodos=np.zeros((19,2)), mf_p=MF_parameters_it2mf2, rules=Rules_it2mf2, c_p=C_parameters_it2mf2)
+    steering = IT2FLS(n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((19,2)), mf_p=MF_parameters_it2mf2, rules=Rules_it2mf2, c_p=C_parameters_it2mf2)
     delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
     return delta
 
 # Function for steering wheel calculation by IT2FLS with 3 MF
 def it2fls_3mf():
-    steering = IT2FLS(n_entradas=2, n_mf=3, n_rules=9, nodos=np.zeros((36,2)), mf_p=MF_parameters_it2mf3, rules=Rules_it2mf3, c_p=C_parameters_it2mf3)
+    steering = IT2FLS(n_inputs=2, n_mf=3, n_rules=9, nodes=np.zeros((36,2)), mf_p=MF_parameters_it2mf3, rules=Rules_it2mf3, c_p=C_parameters_it2mf3)
     delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
     return delta
 
 # Function for steering wheel calculation by T1FLS with 2 MF
-def t1fls():
-    return
+def t1fls_2mf():
+    steering = T1FLS(n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((16,1)), mf_p=MF_parameters_t1mf2, rules=Rules_t1mf2, c_p=C_parameters_t1mf2)
+    delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
+    return delta
 
 # Update the selected control type
 def update_control(sender, app_data):
@@ -68,7 +70,7 @@ control_functions = {
     "Based on error": based_on_error,
     "IT2FLS with 2MF": it2fls_2mf,
     "IT2FLS with 3MF": it2fls_3mf,
-    "T1FLS": t1fls
+    "T1FLS with 2MF": t1fls_2mf
 }
 
 # Function to run the simulation of the vehicle on the selected route with the chosen control    
@@ -301,47 +303,47 @@ class Trajectory:
 
 # IT2 model adjustable to any number of inputs and membership functions  
 class IT2FLS:
-    def __init__(self, n_entradas=2, n_mf=2, n_rules=4, nodos=np.zeros((19,2)), mf_p=MF_parameters_it2mf2, rules=Rules_it2mf2, c_p=C_parameters_it2mf2):
-        self.n_entradas = n_entradas
+    def __init__(self, n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((19,2)), mf_p=MF_parameters_it2mf2, rules=Rules_it2mf2, c_p=C_parameters_it2mf2):
+        self.n_inputs = n_inputs
         self.n_mf = n_mf
         self.n_rules = n_rules
-        self.nodos = nodos
-        self.MF_parametros_it2 = mf_p
-        self.Reglas_it2 = rules
-        self.C_parametros_it2 = c_p
+        self.nodes = nodes
+        self.MF_parameters_it2 = mf_p
+        self.Rules_it2 = rules
+        self.C_parameters_it2 = c_p
 
     def model(self,entradas):
-        self.nodos[0:self.n_entradas,0]=entradas
+        self.nodes[0:self.n_inputs,0]=entradas
 
-        for i in range(0,self.n_entradas):
+        for i in range(0,self.n_inputs):
             for j in range(0,self.n_mf):
-                ind=self.n_entradas+i*self.n_mf+j
+                ind=self.n_inputs+i*self.n_mf+j
                 x = entradas[i]
-                pb = self.MF_parametros_it2[i*self.n_mf+j,2]
-                pc = self.MF_parametros_it2[i*self.n_mf+j,3]
-                pai = self.MF_parametros_it2[i*self.n_mf+j,0]
+                pb = self.MF_parameters_it2[i*self.n_mf+j,2]
+                pc = self.MF_parameters_it2[i*self.n_mf+j,3]
+                pai = self.MF_parameters_it2[i*self.n_mf+j,0]
                 tmp1i = (x - pc)/pai
                 if tmp1i == 0:
                     tmp2i=0
                 else:
                     tmp2i = (tmp1i*tmp1i)**pb
-                self.nodos[ind,0]=self.MF_parametros_it2[i*self.n_mf+j,4]/(1+tmp2i)
-                pas = self.MF_parametros_it2[i*self.n_mf+j,1]
+                self.nodes[ind,0]=self.MF_parameters_it2[i*self.n_mf+j,4]/(1+tmp2i)
+                pas = self.MF_parameters_it2[i*self.n_mf+j,1]
                 tmp1s = (x - pc)/pas
                 if tmp1s == 0:
                     tmp2s=0
                 else:
                     tmp2s = (tmp1s*tmp1s)**pb
-                self.nodos[ind,1]=1/(1+tmp2s)
+                self.nodes[ind,1]=1/(1+tmp2s)
 
-        st=self.n_entradas+self.n_entradas*self.n_mf
+        st=self.n_inputs+self.n_inputs*self.n_mf
         for i in range(st,st+self.n_rules):
-            self.nodos[i,0]=np.cumprod(self.nodos[self.Reglas_it2[i-st,:],0])[-1]
-            self.nodos[i,1]=np.cumprod(self.nodos[self.Reglas_it2[i-st,:],1])[-1]
+            self.nodes[i,0]=np.cumprod(self.nodes[self.Rules_it2[i-st,:],0])[-1]
+            self.nodes[i,1]=np.cumprod(self.nodes[self.Rules_it2[i-st,:],1])[-1]
 
-        st=self.n_entradas+self.n_entradas*self.n_mf
-        wi=self.nodos[st:st+self.n_rules,0]
-        ws=self.nodos[st:st+self.n_rules,1]
+        st=self.n_inputs+self.n_inputs*self.n_mf
+        wi=self.nodes[st:st+self.n_rules,0]
+        ws=self.nodes[st:st+self.n_rules,1]
 
         wi_orig = wi.copy()
         wi = np.sort(wi)
@@ -366,9 +368,49 @@ class IT2FLS:
         Xr = np.divide(np.concatenate((wi[0:r+1], ws[r+1:]), axis=0),np.sum(np.concatenate((wi[0:r+1], ws[r+1:]), axis=0)))
         X = ((Xl+Xr)/2)[order]
 
-        st=self.n_entradas+self.n_entradas*self.n_mf+2*self.n_rules
+        st=self.n_inputs+self.n_inputs*self.n_mf+2*self.n_rules
         for i in range(0,self.n_rules):
-           self.nodos[i+st,0] = X[i]*(np.sum(self.C_parametros_it2[i,0:-1]*entradas)+self.C_parametros_it2[i,-1])
+           self.nodes[i+st,0] = X[i]*(np.sum(self.C_parameters_it2[i,0:-1]*entradas)+self.C_parameters_it2[i,-1])
 
-        y = np.sum(self.nodos[-self.n_rules-1:-1,0])
+        y = np.sum(self.nodes[-self.n_rules-1:-1,0])
+        return y
+    
+class T1FLS:
+    def __init__(self, n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((16,1)), mf_p=MF_parameters_t1mf2, rules=Rules_t1mf2, c_p=C_parameters_t1mf2):
+        self.n_inputs = n_inputs
+        self.n_mf = n_mf
+        self.n_rules = n_rules
+        self.nodes = nodes
+        self.MF_parameters_t1 = mf_p
+        self.Rules_t1 = rules
+        self.C_parameters_t1 = c_p
+
+    def model(self,entradas):
+        for i in range(0,self.n_inputs):
+            for j in range(0,self.n_mf):
+                ind=i*self.n_mf+j
+                x = entradas[i]
+                pb = self.MF_parameters_t1[i*self.n_mf+j,1]
+                pc = self.MF_parameters_t1[i*self.n_mf+j,2]
+                pa = self.MF_parameters_t1[i*self.n_mf+j,0]
+                tmp1 = (x - pc)/pa
+                if tmp1 == 0:
+                    tmp2=0
+                else:
+                    tmp2 = (tmp1*tmp1)**pb
+                self.nodes[ind,0]=1/(1+tmp2)
+        
+        st=self.n_inputs*self.n_mf
+        for i in range(st,st+self.n_rules):
+            self.nodes[i,0]=np.cumprod(self.nodes[self.Rules_t1[i-st,:],0])[-1]
+
+        st=self.n_inputs*self.n_mf+self.n_rules
+        for i in range(st,st+self.n_rules):
+            self.nodes[i,0]=self.nodes[i-self.n_rules,0]/np.sum(self.nodes[st-self.n_rules:st,0])
+
+        st=self.n_inputs*self.n_mf+2*self.n_rules
+        for i in range(0,self.n_rules):
+           self.nodes[i+st,0] = self.nodes[st-self.n_rules+i,0]*(np.sum(self.C_parameters_t1[i,0:-1]*entradas)+self.C_parameters_t1[i,-1])
+
+        y = np.sum(self.nodes[-self.n_rules:,0])
         return y
