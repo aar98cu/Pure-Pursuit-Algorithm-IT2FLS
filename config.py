@@ -22,9 +22,13 @@ target_vel = 2
 max_delta_speed = 0.05 #0.1
 max_delta_steering = 0.0523599
 
-# Control variables
-control = ["Geometric Lateral Control", "Based on error", "IT2FLS with 2MF", "IT2FLS with 3MF", "T1FLS with 2MF"]
-control_func = None
+# Steering control variables
+steering_control = ["Geometric Lateral Control", "Based on error", "IT2FLS with 2MF", "IT2FLS with 3MF", "T1FLS with 2MF"]
+steering_control_func = None
+
+# Velocity control variables
+velocity_control = ["PI control", "PI control 2"]
+velocity_control_func = None
 
 # Control parameters
 params = {

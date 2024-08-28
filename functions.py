@@ -57,20 +57,43 @@ def t1fls_2mf():
     delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
     return delta
 
-# Update the selected control type
-def update_control(sender, app_data):
-    global control_func
-    selected_control = app_data
-    
-    control_func = control_functions[selected_control]
+# Update the selected steering control type
+def update_steering_control(sender, app_data):
+    global steering_control_func
+    steering_control_func = steering_control_functions[app_data]
 
-# Dictionary of the different types of control
-control_functions = {
+# Dictionary of the different types of steering control
+steering_control_functions = {
     "Geometric Lateral Control": geometric_lateral_control,
     "Based on error": based_on_error,
     "IT2FLS with 2MF": it2fls_2mf,
     "IT2FLS with 3MF": it2fls_3mf,
     "T1FLS with 2MF": t1fls_2mf
+}
+
+# PI function to calculate speed
+def pi_velocity_control(vel):
+    global PI_acc
+    vel_err = params["ld"]-look_ahead
+    velocity = np.clip(PI_acc.control(vel_err), 0, dpg.get_value("speed_slider"))
+    return velocity, vel_err
+
+def pi_velocity_control_2(vel):
+    global PI_acc
+    #Actualizar target vel con el slider
+    vel_err = dpg.get_value("speed_slider")-vel
+    velocity = vel+np.clip(PI_acc.control(vel_err)*dt, 0, dpg.get_value("speed_slider"))
+    return velocity, vel_err
+
+# Update the selected velocity control type
+def update_velocity_control(sender, app_data):
+    global velocity_control_func
+    velocity_control_func = velocity_control_functions[app_data]
+
+# Dictionary of the different types of velocity control
+velocity_control_functions = {
+    "PI control": pi_velocity_control,
+    "PI control 2": pi_velocity_control_2,
 }
 
 # Function to run the simulation of the vehicle on the selected route with the chosen control    
@@ -96,13 +119,12 @@ def run_simulation():
     traj = Trajectory(x_data, y_data)
     goal = traj.getPoint(len(x_data) - 1)
 
-    PI_acc = PI()
-
     traj_ego_x = []
     traj_ego_y = []
 
     lateral_error_list = [0]
     heading_error_list = [0]
+    velocity_error_list = [0]
     speed_list = []
     delta_list = []
     index = 0
@@ -110,50 +132,53 @@ def run_simulation():
     file_path = f'./results/{dpg.get_value("control")} in {dpg.get_value("path")} {"with noise" if dpg.get_value("noise_checkbox") else "without noise"} and speed {dpg.get_value("speed_slider")}.txt'    
 
     with open(file_path, "w") as file:
-        file.write("mse_lateral_error,mse_heading_error\n")
+        #file.write("mse_lateral_error,mse_heading_error\n")
         
         while getDistance([ego.x, ego.y], goal) > 1 or index<len(x_data)-2:
             target_point, current, index = traj.getTargetPoint([ego.x, ego.y])
+            params["ld"] = current
 
-            vel_err = math.sqrt(math.pow(target_point[1] - ego.y,2)+math.pow(target_point[0] - ego.x,2))-look_ahead
-            acc = np.clip(PI_acc.control(vel_err), 0, dpg.get_value("speed_slider"))
+            velocity, vel_err = velocity_control_func(ego.vel)
+            velocity_error_list.append(vel_err)
+            params["velocity_error"] = velocity_error_list[-1]
+            params["d_velocity_error"] = (velocity_error_list[-1] - (velocity_error_list[-2] if len(velocity_error_list) > 1 else 0)) / dt
 
             distances = np.sqrt((ruta[:, 0] - ego.x)**2 + (ruta[:, 1] - ego.y)**2)
             index_near_point = np.argmin(distances)
             yaw_err_mp = math.atan2(ruta[index_near_point, 1] - ego.y, ruta[index_near_point, 0] - ego.x) - ego.yaw
             yaw_err_mp = np.arctan2(np.sin(yaw_err_mp), np.cos(yaw_err_mp))
+            lateral_error_list.append(distances[index_near_point]*math.sin(yaw_err_mp))
 
             yaw_err = math.atan2(target_point[1] - ego.y, target_point[0] - ego.x) - ego.yaw
             yaw_err = np.arctan2(np.sin(yaw_err), np.cos(yaw_err))
-            
-            params["yaw_error"] = yaw_err
+            heading_error_list.append(yaw_err)            
+            params["yaw_error"] = heading_error_list[-1]
             params["d_yaw_error"] = (heading_error_list[-1] - (heading_error_list[-2] if len(heading_error_list) > 1 else 0)) / dt
-            params["ld"] = current
-            delta = np.clip(control_func(), -0.698132, 0.698132)
             
-            ego.update(acc, delta)
+            delta = np.clip(steering_control_func(), -0.698132, 0.698132)
+            
+            ego.update(velocity, delta)
+            speed_list.append(ego.vel)
+            delta_list.append(math.degrees(ego.delta))
 
             traj_ego_x.append(ego.x)
             traj_ego_y.append(ego.y)
 
-            lateral_error_list.append(distances[index_near_point]*math.sin(yaw_err_mp))
-            heading_error_list.append(yaw_err)
-            speed_list.append(ego.vel)
-            delta_list.append(math.degrees(ego.delta))
-            file.write(f"{(np.mean(np.square(lateral_error_list)))},{(math.degrees(np.mean(np.square(heading_error_list))))}\n")
+            #file.write(f'{(np.mean(np.square(lateral_error_list)))},{(math.degrees(np.mean(np.square(heading_error_list))))}\n')
+            file.write(f'{params["velocity_error"]},{params["d_velocity_error"]},{(np.mean(np.square(lateral_error_list)))}\n')
 
             #Consider a function to update the interface
             dpg.set_value("x", f"X: {ego.x:.2f}m")
             dpg.set_value("y", f"Y: {ego.y:.2f}m")
             dpg.set_value("theta", f"Theta: {math.degrees(ego.yaw):.2f}°")
             dpg.set_value("v", f"V: {ego.vel:.2f}m/s")
-            dpg.set_value("delta", f"Delta: {math.degrees(delta):.2f}°")
+            dpg.set_value("delta", f"Delta: {math.degrees(ego.delta):.2f}°")
             dpg.set_value("le", f"Lateral error: {lateral_error_list[-1]:.2f}m")
             dpg.set_value("msele", f"MSE lateral: {(np.mean(np.square(lateral_error_list))):.2f}m")
-            dpg.set_value("he", f"Heading error: {math.degrees(yaw_err):.2f}°")
+            dpg.set_value("he", f"Heading error: {math.degrees(heading_error_list[-1]):.2f}°")
             dpg.set_value("msehe", f"MSE heading: {math.degrees(np.mean(np.square(heading_error_list))):.2f}°")
             
-            update_vehicle(ego.x, ego.y, ego.yaw, delta)
+            update_vehicle(ego.x, ego.y, ego.yaw, ego.delta)
             dpg.set_value("reference_plot", [traj_ego_x, traj_ego_y])
             dpg.bind_item_theme("reference_plot", "reference_theme")
             dpg.fit_axis_data("xaxis")
@@ -224,7 +249,7 @@ class Mathematic_Model:
         self.vel = vel
         self.delta = delta
 
-    def update(self, acc, delta):
+    def update(self, velocity, delta):
         if dpg.get_value("noise_checkbox"):
             delta_steering = delta - self.delta
             if abs(delta_steering) > max_delta_steering:
@@ -236,7 +261,7 @@ class Mathematic_Model:
 
             self.yaw += self.vel * math.tan(self.delta) / WB * dt
 
-            delta_speed = acc - self.vel
+            delta_speed = velocity - self.vel
             if abs(delta_speed) > max_delta_speed:
                 delta_speed = max_delta_speed if delta_speed > 0 else -max_delta_speed
             self.vel += delta_speed
@@ -245,7 +270,7 @@ class Mathematic_Model:
             self.x += self.vel * math.cos(self.yaw) * dt
             self.y += self.vel * math.sin(self.yaw) * dt
             self.yaw += self.vel * math.tan(self.delta) / WB * dt
-            self.vel = acc
+            self.vel = velocity
 
         #self.vel += acc * dt
         #self.vel = 1
@@ -277,6 +302,8 @@ class PI:
         self.last_error = error
         output = self.Pterm + self.ki * self.Iterm
         return output
+    
+PI_acc = PI()
 
 # Functions of vehicle trajectory calculation
 class Trajectory:
