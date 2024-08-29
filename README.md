@@ -2,7 +2,7 @@
 This repository contains the code for simulating a vehicle's trajectory using different lateral and velocity control methods under varying conditions. The simulation is built using DearPyGUI for the interface and includes options for noise simulation to replicate real-world conditions.
 
 📂 Project Structure
-bash
+```bash
 Copiar código
 .
 ├── pure_pursuit.py          # Main interface and simulation control
@@ -11,6 +11,7 @@ Copiar código
 ├── vehicle.py               # Vehicle model and dynamics
 ├── results/                 # Directory for simulation results
 └── README.md                # This readme file
+```
 🚀 Getting Started
 Prerequisites
 Ensure you have Python 3.8+ installed along with the following libraries:
