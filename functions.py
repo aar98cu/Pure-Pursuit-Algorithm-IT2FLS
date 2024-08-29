@@ -1,68 +1,69 @@
-import dearpygui.dearpygui as dpg
+import math
+import time
+import numpy as np
 from config import *
 from vehicle import *
-import math
-import numpy as np
-import time
 import matplotlib.pyplot as plt
+import dearpygui.dearpygui as dpg
 
-# Adjust the size of the interface
+# Adjust the size of the interface to fit the current viewport dimensions
 def fit_interface_size(sender, app_data):
     global width
     global height
     
-    width = dpg.get_viewport_width()
-    height = dpg.get_viewport_height()
+    width = dpg.get_viewport_width() # Get the current width of the viewport
+    height = dpg.get_viewport_height() # Get the current height of the viewport
     
+    # Update the size of the main window and the panels
     dpg.configure_item("window", width=width, height=height)
-    
     dpg.configure_item("left_panel", width=int(width * 0.2), height=40)
     dpg.configure_item("right_panel", width=int(width * 0.77), height=int(height*0.9))
 
-# Select and display the selected path
+# Update and display the selected path on the plot
 def update_trayectoria(sender, app_data):
-    seleccion = app_data
-    x_data, y_data = zip(*trayectorias[seleccion])
+    seleccion = app_data # Selected path from dropdown
+    x_data, y_data = zip(*paths[seleccion]) # Extract x and y data points
     
+    # Update the plot with the new path data
     dpg.set_value("trayectoria_plot", [x_data, y_data])
-    dpg.bind_item_theme("trayectoria_plot", "path_theme")
-    dpg.fit_axis_data("xaxis")
-    dpg.fit_axis_data("yaxis")
+    dpg.bind_item_theme("trayectoria_plot", "path_theme")  # Apply the path theme
+    dpg.fit_axis_data("xaxis") # Adjust the x-axis to fit the new data
+    dpg.fit_axis_data("yaxis") # Adjust the y-axis to fit the new data
 
-# Function for steering wheel calculation by geometric lateral control
+# Calculate the steering angle using geometric lateral control
 def steering_geometric_lateral_control():
     delta = math.atan2((2*1.3*math.sin(params["yaw_error"]))/params["ld"],1)
     return delta
 
-# Function for steering wheel calculation by error
+# Calculate the steering angle based on yaw error
 def steering_based_on_error():
     delta = params["yaw_error"]
     return delta
 
-# Function for steering wheel calculation by IT2FLS with 2 MF
+# Calculate the steering angle using IT2FLS with 2 membership functions
 def steering_it2fls_2mf():
     steering = IT2FLS(n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((19,2)), mf_p=MF_parameters_it2mf2_delta, rules=Rules_it2mf2, c_p=C_parameters_it2mf2_delta)
     delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
     return delta
 
-# Function for steering wheel calculation by IT2FLS with 3 MF
+# Calculate the steering angle using IT2FLS with 3 membership functions
 def steering_it2fls_3mf():
     steering = IT2FLS(n_inputs=2, n_mf=3, n_rules=9, nodes=np.zeros((36,2)), mf_p=MF_parameters_it2mf3_delta, rules=Rules_it2mf3, c_p=C_parameters_it2mf3_delta)
     delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
     return delta
 
-# Function for steering wheel calculation by T1FLS with 2 MF
+# Calculate the steering angle using T1FLS with 2 membership functions
 def steering_t1fls_2mf():
     steering = T1FLS(n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((16,1)), mf_p=MF_parameters_t1mf2_delta, rules=Rules_t1mf2, c_p=C_parameters_t1mf2_delta)
     delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
     return delta
 
-# Update the selected steering control type
+# Update the selected steering control function based on user selection
 def update_steering_control(sender, app_data):
     global steering_control_func
-    steering_control_func = steering_control_functions[app_data]
+    steering_control_func = steering_control_functions[app_data] # Assign the selected control function
 
-# Dictionary of the different types of steering control
+# Dictionary mapping steering control names to their corresponding functions
 steering_control_functions = {
     "Geometric Lateral Control": steering_geometric_lateral_control,
     "Based on error": steering_based_on_error,
@@ -71,41 +72,44 @@ steering_control_functions = {
     "T1FLS with 2MF": steering_t1fls_2mf
 }
 
-# PI function to calculate speed
+# Calculate the vehicle speed using a PI controller from Robotics, Vision and Control book
 def velocity_pi_control(vel):
     global PI_acc
     vel_err = params["ld"]-look_ahead
     velocity = np.clip(PI_acc.control(vel_err), 0, dpg.get_value("speed_slider"))
     return velocity, vel_err
 
+# Calculate the vehicle speed using a PI controller
 def velocity_pi_control_2(vel):
     global PI_acc
-    #Actualizar target vel con el slider
     vel_err = dpg.get_value("speed_slider")-vel
     velocity = np.clip(vel+PI_acc.control(vel_err)*dt, 0, dpg.get_value("speed_slider"))
     return velocity, vel_err
 
+# Calculate the vehicle speed using IT2FLS with 2 membership functions
 def velocity_it2fls_2mf(vel):
+    vel_err = params["ld"]-look_ahead
     acc = IT2FLS(n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((19,2)), mf_p=MF_parameters_it2mf2_vel, rules=Rules_it2mf2, c_p=C_parameters_it2mf2_vel)
-    velocity = np.clip(acc.model(np.array([params["velocity_error"], params["d_velocity_error"]])), 0, dpg.get_value("speed_slider"))
-    return velocity, params["velocity_error"]
+    velocity = np.clip(acc.model(np.array([vel_err, params["d_velocity_error"]])), 0, dpg.get_value("speed_slider"))
+    return velocity, vel_err
 
 # Update the selected velocity control type
 def update_velocity_control(sender, app_data):
     global velocity_control_func
     velocity_control_func = velocity_control_functions[app_data]
 
-# Dictionary of the different types of velocity control
+# Dictionary mapping control types to their respective functions
 velocity_control_functions = {
     "PI control": velocity_pi_control,
     "PI control 2": velocity_pi_control_2,
     "IT2FLS with 2MF": velocity_it2fls_2mf
 }
 
-# Function to run the simulation of the vehicle on the selected route with the chosen control    
+# Function to run the simulation on the selected path with the chosen control settings    
 def run_simulation():
-    global max_delta_steering
-    global max_delta_speed
+    global max_delta_steering, max_delta_speed
+
+    # Disable interface elements during the simulation
     dpg.disable_item("speed_slider")
     dpg.disable_item("noise_checkbox")
     dpg.disable_item("run_button")
@@ -114,48 +118,49 @@ def run_simulation():
     dpg.disable_item("max_steering_delta")
     dpg.disable_item("max_speed_delta")
 
+    # Update maximum steering and speed delta values from the interface
     max_delta_steering = math.radians(dpg.get_value("max_steering_delta"))
     max_delta_speed = dpg.get_value("max_speed_delta")
 
+    # Initialize vehicle model
     ego =  Mathematic_Model(0,0,1.5708)
 
+    # Extract x and y coordinates from the selected path
     x_data, y_data = dpg.get_value("trayectoria_plot")
-
-    ruta = np.stack((x_data, y_data), axis=-1)
+    path = np.stack((x_data, y_data), axis=-1)
     traj = Trajectory(x_data, y_data)
     goal = traj.getPoint(len(x_data) - 1)
 
-    traj_ego_x = []
-    traj_ego_y = []
-
+    # Initialize lists for tracking simulation metrics
+    traj_ego_x, traj_ego_y = [], []
     lateral_error_list = [0]
     heading_error_list = [0]
     velocity_error_list = [0]
-    speed_list = []
-    delta_list = []
+    speed_list = [0]
+    delta_list = [0]
     index = 0
 
+    # Define file path to save results
     file_path = f'./results/{dpg.get_value("control")} in {dpg.get_value("path")} {"with noise" if dpg.get_value("noise_checkbox") else "without noise"} and speed {dpg.get_value("speed_slider")}.txt'    
 
     with open(file_path, "w") as file:
         #file.write("mse_lateral_error,mse_heading_error\n")
         
         while getDistance([ego.x, ego.y], goal) > 1 or index<len(x_data)-2:
+            # Calculate the target point and update parameters
             target_point, current, index = traj.getTargetPoint([ego.x, ego.y])
             params["ld"] = current
 
-            vel_err = params["ld"]-look_ahead
-
-            #velocity, vel_err = velocity_control_func(ego.vel)
+            # Update velocity control parameters
+            velocity, vel_err = velocity_control_func(ego.vel)
             velocity_error_list.append(vel_err)
             params["velocity_error"] = velocity_error_list[-1]
             params["d_velocity_error"] = (velocity_error_list[-1] - (velocity_error_list[-2] if len(velocity_error_list) > 1 else 0)) / dt
 
-            velocity, vel_err = velocity_control_func(ego.vel)
-
-            distances = np.sqrt((ruta[:, 0] - ego.x)**2 + (ruta[:, 1] - ego.y)**2)
+            # Calculate nearest point and errors
+            distances = np.sqrt((path[:, 0] - ego.x)**2 + (path[:, 1] - ego.y)**2)
             index_near_point = np.argmin(distances)
-            yaw_err_mp = math.atan2(ruta[index_near_point, 1] - ego.y, ruta[index_near_point, 0] - ego.x) - ego.yaw
+            yaw_err_mp = math.atan2(path[index_near_point, 1] - ego.y, path[index_near_point, 0] - ego.x) - ego.yaw
             yaw_err_mp = np.arctan2(np.sin(yaw_err_mp), np.cos(yaw_err_mp))
             lateral_error_list.append(distances[index_near_point]*math.sin(yaw_err_mp))
 
@@ -165,9 +170,10 @@ def run_simulation():
             params["yaw_error"] = heading_error_list[-1]
             params["d_yaw_error"] = (heading_error_list[-1] - (heading_error_list[-2] if len(heading_error_list) > 1 else 0)) / dt
             
+            # Apply steering control and update vehicle state
             delta = np.clip(steering_control_func(), -0.698132, 0.698132)
-            
             ego.update(velocity, delta)
+
             speed_list.append(ego.vel)
             delta_list.append(math.degrees(ego.delta))
 
@@ -177,7 +183,7 @@ def run_simulation():
             file.write(f'{(np.mean(np.square(lateral_error_list)))},{(math.degrees(np.mean(np.square(heading_error_list))))}\n')
             #file.write(f'{params["velocity_error"]},{params["d_velocity_error"]},{ego.vel}\n')
 
-            #Consider a function to update the interface
+            # Update interface values for real-time display
             dpg.set_value("x", f"X: {ego.x:.2f}m")
             dpg.set_value("y", f"Y: {ego.y:.2f}m")
             dpg.set_value("theta", f"Theta: {math.degrees(ego.yaw):.2f}°")
@@ -195,6 +201,7 @@ def run_simulation():
             dpg.fit_axis_data("yaxis")
             time.sleep(dt)
 
+    # Re-enable interface elements after simulation ends
     dpg.enable_item("speed_slider")
     dpg.enable_item("noise_checkbox")
     dpg.enable_item("run_button")
@@ -203,7 +210,7 @@ def run_simulation():
     dpg.enable_item("max_steering_delta")
     dpg.enable_item("max_speed_delta")
 
-    #Create function to graph
+    # Plot simulation results
     plt.figure()
     plt.subplot(2, 2, 1)
     plt.plot(speed_list, label='Speed')
@@ -242,16 +249,15 @@ def getDistance(p1, p2):
     dy = p1[1] - p2[1]
     return math.hypot(dx, dy)
 
-# Functions of the Mathematical Bicycle Model
 class Mathematic_Model:
     def __init__(self, x, y, yaw, vel=0, delta=0):
         """
-        Define a vehicle class
-        :param x: float, x position
-        :param y: float, y position
-        :param yaw: float, vehicle heading
-        :param vel: float, velocity
-        :param delta: float, steering orientation
+        Initialize the vehicle's state.
+        :param x: float, initial x position
+        :param y: float, initial y position
+        :param yaw: float, initial heading (yaw angle in radians)
+        :param vel: float, initial velocity (default is 0)
+        :param delta: float, initial steering angle (default is 0) 
         """
         self.x = x
         self.y = y
@@ -260,7 +266,13 @@ class Mathematic_Model:
         self.delta = delta
 
     def update(self, velocity, delta):
+        """
+        Update the vehicle's state based on velocity and steering angle.
+        :param velocity: float, the current velocity of the vehicle
+        :param delta: float, the current steering angle (in radians)
+        """
         if dpg.get_value("noise_checkbox"):
+            # Apply steering and velocity constraints with noise
             delta_steering = delta - self.delta
             if abs(delta_steering) > max_delta_steering:
                 delta_steering = max_delta_steering if delta_steering > 0 else -max_delta_steering
@@ -276,6 +288,7 @@ class Mathematic_Model:
                 delta_speed = max_delta_speed if delta_speed > 0 else -max_delta_speed
             self.vel += delta_speed
         else:
+            # Update state without noise
             self.delta=delta
             self.x += self.vel * math.cos(self.yaw) * dt
             self.y += self.vel * math.sin(self.yaw) * dt
@@ -285,14 +298,12 @@ class Mathematic_Model:
         #self.vel += acc * dt
         #self.vel = 1
 
-# PI controller functions
 class PI:
     def __init__(self, kp=1.0, ki=0.1):
         """
-        Define a PID controller class
-        :param kp: float, kp coeff
-        :param ki: float, ki coeff
-        :param kd: float, kd coeff
+        Initialize the PI controller.
+        :param kp: float, proportional gain
+        :param ki: float, integral gain 
         """
         self.kp = kp
         self.ki = ki
@@ -302,9 +313,9 @@ class PI:
 
     def control(self, error):
         """
-        PID main function, given an input, this function will output a control unit
-        :param error: float, error term
-        :return: float, output control
+        Compute the control output based on the error.
+        :param error: float, the current error value
+        :return: float, the control output
         """
         self.Pterm = self.kp * error
         self.Iterm += error * dt
@@ -312,20 +323,36 @@ class PI:
         self.last_error = error
         output = self.Pterm + self.ki * self.Iterm
         return output
-    
+
+# Update to best usage
 PI_acc = PI()
 
 # Functions of vehicle trajectory calculation
 class Trajectory:
+    """
+    Initialize the trajectory with x and y coordinates.
+    :param traj_x: list of floats, x coordinates of the trajectory
+    :param traj_y: list of floats, y coordinates of the trajectory
+    """
     def __init__(self, traj_x, traj_y):
         self.traj_x = traj_x
         self.traj_y = traj_y
         self.last_idx = 0
 
     def getPoint(self, idx):
+        """
+        Get the trajectory point at a given index.
+        :param idx: int, index of the desired point
+        :return: list of float, [x, y] coordinates of the trajectory point
+        """
         return [self.traj_x[idx], self.traj_y[idx]]
 
     def getTargetPoint(self, pos):
+        """
+        Get the target point along the trajectory based on the current position.
+        :param pos: list of float, current [x, y] position of the vehicle
+        :return: tuple, target [x, y] point, current distance to the point, and updated index
+        """
         target_idx = self.last_idx
         target_point = self.getPoint(target_idx)
         curr_dist = getDistance(pos, target_point)
@@ -338,8 +365,17 @@ class Trajectory:
         self.last_idx = target_idx
         return self.getPoint(target_idx), curr_dist, self.last_idx
 
-# IT2 model adjustable to any number of inputs and membership functions  
 class IT2FLS:
+    """
+    Initialize an IT2FLS model.
+    :param n_inputs: int, number of inputs to the model
+    :param n_mf: int, number of membership functions per input
+    :param n_rules: int, number of fuzzy rules
+    :param nodes: numpy array, storage for node calculations
+    :param mf_p: numpy array, parameters of the membership functions
+    :param rules: numpy array, fuzzy rule base
+    :param c_p: numpy array, consequent parameters for the rules
+    """
     def __init__(self, n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((19,2)), mf_p=MF_parameters_it2mf2_delta, rules=Rules_it2mf2, c_p=C_parameters_it2mf2_delta):
         self.n_inputs = n_inputs
         self.n_mf = n_mf
@@ -350,6 +386,11 @@ class IT2FLS:
         self.C_parameters_it2 = c_p
 
     def model(self,entradas):
+        """
+        Perform inference based on the IT2FLS model.
+        :param entradas: numpy array, input values for the model
+        :return: float, output of the fuzzy logic model
+        """
         self.nodes[0:self.n_inputs,0]=entradas
 
         for i in range(0,self.n_inputs):
@@ -413,6 +454,16 @@ class IT2FLS:
         return y
     
 class T1FLS:
+    """
+    Initialize a T1FLS model.
+    :param n_inputs: int, number of inputs to the model
+    :param n_mf: int, number of membership functions per input
+    :param n_rules: int, number of fuzzy rules
+    :param nodes: numpy array, storage for node calculations
+    :param mf_p: numpy array, parameters of the membership functions
+    :param rules: numpy array, fuzzy rule base
+    :param c_p: numpy array, consequent parameters for the rules
+    """
     def __init__(self, n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((16,1)), mf_p=MF_parameters_t1mf2_delta, rules=Rules_t1mf2, c_p=C_parameters_t1mf2_delta):
         self.n_inputs = n_inputs
         self.n_mf = n_mf
@@ -423,6 +474,11 @@ class T1FLS:
         self.C_parameters_t1 = c_p
 
     def model(self,entradas):
+        """
+        Perform inference based on the T1FLS model.
+        :param entradas: numpy array, input values for the model
+        :return: float, output of the fuzzy logic model
+        """
         for i in range(0,self.n_inputs):
             for j in range(0,self.n_mf):
                 ind=i*self.n_mf+j

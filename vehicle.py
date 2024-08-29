@@ -107,10 +107,6 @@ def plotVehicle(x, y, yaw, steer=0.0):
     dpg.bind_item_theme("rl_wheel", "vehicle_theme")
 
 def update_vehicle(x, y, yaw, steer=0.0):
-    """
-    The function is to plot the vehicle
-    it is copied and modified from https://github.com/AtsushiSakai/PythonRobotics/blob/187b6aa35f3cbdeca587c0abdb177adddefc5c2a/PathTracking/model_predictive_speed_and_steer_control/model_predictive_speed_and_steer_control.py#L109
-    """
     outline = np.array(
         [
             [
