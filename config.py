@@ -27,13 +27,15 @@ steering_control = ["Geometric Lateral Control", "Based on error", "IT2FLS with 
 steering_control_func = None
 
 # Velocity control variables
-velocity_control = ["PI control", "PI control 2"]
+velocity_control = ["PI control", "PI control 2", "IT2FLS with 2MF"]
 velocity_control_func = None
 
 # Control parameters
 params = {
     "yaw_error": 0.0,
     "d_yaw_error": 0.0,
+    "velocity_error": 0.0,
+    "d_velocity_error": 0.0,
     "ld": 0.0,
 }
 
@@ -60,12 +62,12 @@ trayectorias = {
 paths = ["Path 1", "Path 2", "Path 3", "Path 4"]
 
 # Constants of the fuzzy IT2 controller with 2 membership functions
-MF_parameters_it2mf2 = np.array([[0.091044, 0.03161, 1.0488, -0.21707, 0.15446],
+MF_parameters_it2mf2_delta = np.array([[0.091044, 0.03161, 1.0488, -0.21707, 0.15446],
     [0.076239, 0.18334, 1.0264, 0.37033, 0.78535],
     [1.3177, 1.5725, 1.0069, -4.618, 0.45283],
     [1.3091, 1.577, 1.0135, 1.9458, 0.46793]])
 
-C_parameters_it2mf2 = np.array([[-0.50804, 0.12629, -0.44446],
+C_parameters_it2mf2_delta = np.array([[-0.50804, 0.12629, -0.44446],
     [1.8885, -0.18666, 0.070893],
     [1.8154, -0.1777, 0.19092],
     [0.79655, 0.081774, -0.049842]])
@@ -76,14 +78,14 @@ Rules_it2mf2 = np.array([[2, 4],
     [3, 5]])
 
 # Constants of the fuzzy IT2 controller with 3 membership functions
-MF_parameters_it2mf3 = np.array([[0.16207, 0.18457, 1.0085, -0.43013, 0.37617],
+MF_parameters_it2mf3_delta = np.array([[0.16207, 0.18457, 1.0085, -0.43013, 0.37617],
     [0.072534, 0.091516, 1.0262, -0.02401, 0.3882],
     [0.022101, 0.02803, 1.0275, 0.36549, 0.50255],
     [1.3126, 1.5771, 0.99528, -4.6208, 0.54202],
     [1.278, 1.5463, 1.0527, -1.3363, 0.40656],
     [1.2884, 1.5522, 1.0617, 1.9235, 0.42364]])
 
-C_parameters_it2mf3 = np.array([[1.6165, 0.043378, 0.3826],
+C_parameters_it2mf3_delta = np.array([[1.6165, 0.043378, 0.3826],
     [1.0109, -0.0075928, 0.047905],
     [1.3223, -0.032349, -0.0010639],
     [3.7929, -0.072392, -0.40528],
@@ -104,12 +106,12 @@ Rules_it2mf3 = np.array([[2, 5],
     [4, 7]])
 
 # Constants of the fuzzy T1 controller with 2 membership functions
-MF_parameters_t1mf2 = np.array([[0.5167, 1.985, -0.3764],
+MF_parameters_t1mf2_delta = np.array([[0.5167, 1.985, -0.3764],
     [0.4749, 2.015, 0.2903],
     [3.288, 2.005, -4.614],
     [3.287, 1.994, 1.952]])
 
-C_parameters_t1mf2 = np.array([[-12.44, 0.6913, -6.652],
+C_parameters_t1mf2_delta = np.array([[-12.44, 0.6913, -6.652],
     [-1.47, -0.1517, -1.5],
     [-9.214, -3.533, 2.268],
     [-1.3, -0.0705, 2.163]])
@@ -118,6 +120,19 @@ Rules_t1mf2 = np.array([[0, 2],
     [0, 3],
     [1, 2],
     [1, 3],])
+
+
+# Constants of the fuzzy IT2 controller with 2 membership functions
+MF_parameters_it2mf2_vel = np.array([[0.72631, 0.87158, 1, -0.17305, 0.5],
+    [0.72631, 0.87158, 1, 3.4585, 0.5],
+    [7.317, 8.7805, 1, -2, 0.5],
+    [7.31705, 8.78046, 1, 34.5852, 0.5]])
+
+C_parameters_it2mf2_vel = np.array([[-1.17582, -2.04875, -12.8161],
+    [-23.4196, -2.02625, 87.2486],
+    [-2.9969, 3.11659, 26.9546],
+    [-38.3781, 3.18461, 19.6162]])
+
 
 # Vehicle theme
 with dpg.theme(tag="vehicle_theme"):

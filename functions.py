@@ -30,30 +30,30 @@ def update_trayectoria(sender, app_data):
     dpg.fit_axis_data("yaxis")
 
 # Function for steering wheel calculation by geometric lateral control
-def geometric_lateral_control():
+def steering_geometric_lateral_control():
     delta = math.atan2((2*1.3*math.sin(params["yaw_error"]))/params["ld"],1)
     return delta
 
 # Function for steering wheel calculation by error
-def based_on_error():
+def steering_based_on_error():
     delta = params["yaw_error"]
     return delta
 
 # Function for steering wheel calculation by IT2FLS with 2 MF
-def it2fls_2mf():
-    steering = IT2FLS(n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((19,2)), mf_p=MF_parameters_it2mf2, rules=Rules_it2mf2, c_p=C_parameters_it2mf2)
+def steering_it2fls_2mf():
+    steering = IT2FLS(n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((19,2)), mf_p=MF_parameters_it2mf2_delta, rules=Rules_it2mf2, c_p=C_parameters_it2mf2_delta)
     delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
     return delta
 
 # Function for steering wheel calculation by IT2FLS with 3 MF
-def it2fls_3mf():
-    steering = IT2FLS(n_inputs=2, n_mf=3, n_rules=9, nodes=np.zeros((36,2)), mf_p=MF_parameters_it2mf3, rules=Rules_it2mf3, c_p=C_parameters_it2mf3)
+def steering_it2fls_3mf():
+    steering = IT2FLS(n_inputs=2, n_mf=3, n_rules=9, nodes=np.zeros((36,2)), mf_p=MF_parameters_it2mf3_delta, rules=Rules_it2mf3, c_p=C_parameters_it2mf3_delta)
     delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
     return delta
 
 # Function for steering wheel calculation by T1FLS with 2 MF
-def t1fls_2mf():
-    steering = T1FLS(n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((16,1)), mf_p=MF_parameters_t1mf2, rules=Rules_t1mf2, c_p=C_parameters_t1mf2)
+def steering_t1fls_2mf():
+    steering = T1FLS(n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((16,1)), mf_p=MF_parameters_t1mf2_delta, rules=Rules_t1mf2, c_p=C_parameters_t1mf2_delta)
     delta = steering.model(np.array([params["yaw_error"], params["d_yaw_error"]]))
     return delta
 
@@ -64,26 +64,31 @@ def update_steering_control(sender, app_data):
 
 # Dictionary of the different types of steering control
 steering_control_functions = {
-    "Geometric Lateral Control": geometric_lateral_control,
-    "Based on error": based_on_error,
-    "IT2FLS with 2MF": it2fls_2mf,
-    "IT2FLS with 3MF": it2fls_3mf,
-    "T1FLS with 2MF": t1fls_2mf
+    "Geometric Lateral Control": steering_geometric_lateral_control,
+    "Based on error": steering_based_on_error,
+    "IT2FLS with 2MF": steering_it2fls_2mf,
+    "IT2FLS with 3MF": steering_it2fls_3mf,
+    "T1FLS with 2MF": steering_t1fls_2mf
 }
 
 # PI function to calculate speed
-def pi_velocity_control(vel):
+def velocity_pi_control(vel):
     global PI_acc
     vel_err = params["ld"]-look_ahead
     velocity = np.clip(PI_acc.control(vel_err), 0, dpg.get_value("speed_slider"))
     return velocity, vel_err
 
-def pi_velocity_control_2(vel):
+def velocity_pi_control_2(vel):
     global PI_acc
     #Actualizar target vel con el slider
     vel_err = dpg.get_value("speed_slider")-vel
-    velocity = vel+np.clip(PI_acc.control(vel_err)*dt, 0, dpg.get_value("speed_slider"))
+    velocity = np.clip(vel+PI_acc.control(vel_err)*dt, 0, dpg.get_value("speed_slider"))
     return velocity, vel_err
+
+def velocity_it2fls_2mf(vel):
+    acc = IT2FLS(n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((19,2)), mf_p=MF_parameters_it2mf2_vel, rules=Rules_it2mf2, c_p=C_parameters_it2mf2_vel)
+    velocity = np.clip(acc.model(np.array([params["velocity_error"], params["d_velocity_error"]])), 0, dpg.get_value("speed_slider"))
+    return velocity, params["velocity_error"]
 
 # Update the selected velocity control type
 def update_velocity_control(sender, app_data):
@@ -92,8 +97,9 @@ def update_velocity_control(sender, app_data):
 
 # Dictionary of the different types of velocity control
 velocity_control_functions = {
-    "PI control": pi_velocity_control,
-    "PI control 2": pi_velocity_control_2,
+    "PI control": velocity_pi_control,
+    "PI control 2": velocity_pi_control_2,
+    "IT2FLS with 2MF": velocity_it2fls_2mf
 }
 
 # Function to run the simulation of the vehicle on the selected route with the chosen control    
@@ -138,10 +144,14 @@ def run_simulation():
             target_point, current, index = traj.getTargetPoint([ego.x, ego.y])
             params["ld"] = current
 
-            velocity, vel_err = velocity_control_func(ego.vel)
+            vel_err = params["ld"]-look_ahead
+
+            #velocity, vel_err = velocity_control_func(ego.vel)
             velocity_error_list.append(vel_err)
             params["velocity_error"] = velocity_error_list[-1]
             params["d_velocity_error"] = (velocity_error_list[-1] - (velocity_error_list[-2] if len(velocity_error_list) > 1 else 0)) / dt
+
+            velocity, vel_err = velocity_control_func(ego.vel)
 
             distances = np.sqrt((ruta[:, 0] - ego.x)**2 + (ruta[:, 1] - ego.y)**2)
             index_near_point = np.argmin(distances)
@@ -164,8 +174,8 @@ def run_simulation():
             traj_ego_x.append(ego.x)
             traj_ego_y.append(ego.y)
 
-            #file.write(f'{(np.mean(np.square(lateral_error_list)))},{(math.degrees(np.mean(np.square(heading_error_list))))}\n')
-            file.write(f'{params["velocity_error"]},{params["d_velocity_error"]},{(np.mean(np.square(lateral_error_list)))}\n')
+            file.write(f'{(np.mean(np.square(lateral_error_list)))},{(math.degrees(np.mean(np.square(heading_error_list))))}\n')
+            #file.write(f'{params["velocity_error"]},{params["d_velocity_error"]},{ego.vel}\n')
 
             #Consider a function to update the interface
             dpg.set_value("x", f"X: {ego.x:.2f}m")
@@ -330,7 +340,7 @@ class Trajectory:
 
 # IT2 model adjustable to any number of inputs and membership functions  
 class IT2FLS:
-    def __init__(self, n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((19,2)), mf_p=MF_parameters_it2mf2, rules=Rules_it2mf2, c_p=C_parameters_it2mf2):
+    def __init__(self, n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((19,2)), mf_p=MF_parameters_it2mf2_delta, rules=Rules_it2mf2, c_p=C_parameters_it2mf2_delta):
         self.n_inputs = n_inputs
         self.n_mf = n_mf
         self.n_rules = n_rules
@@ -403,7 +413,7 @@ class IT2FLS:
         return y
     
 class T1FLS:
-    def __init__(self, n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((16,1)), mf_p=MF_parameters_t1mf2, rules=Rules_t1mf2, c_p=C_parameters_t1mf2):
+    def __init__(self, n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((16,1)), mf_p=MF_parameters_t1mf2_delta, rules=Rules_t1mf2, c_p=C_parameters_t1mf2_delta):
         self.n_inputs = n_inputs
         self.n_mf = n_mf
         self.n_rules = n_rules
