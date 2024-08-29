@@ -27,8 +27,8 @@ Running the Simulation
 Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/pure-pursuit-simulation.git
-cd pure-pursuit-simulation
+git clone https://github.com/aar98cu/Pure-Pursuit-Algorithm-IT2FLS.git
+cd Pure-Pursuit-Algorithm-IT2FLS
 ```
 Run the simulation:
 
