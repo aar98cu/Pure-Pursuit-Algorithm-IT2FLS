@@ -3,7 +3,6 @@ This repository contains the code for simulating a vehicle's trajectory using di
 
 📂 Project Structure
 ```bash
-Copiar código
 .
 ├── pure_pursuit.py          # Main interface and simulation control
 ├── functions.py             # Core functions and control methods
@@ -21,21 +20,21 @@ Numpy
 Matplotlib
 You can install the necessary packages using pip:
 
-bash
-Copiar código
+```bash
 pip install dearpygui numpy matplotlib
+```
 Running the Simulation
 Clone the repository:
 
-bash
-Copiar código
+```bash
 git clone https://github.com/yourusername/pure-pursuit-simulation.git
 cd pure-pursuit-simulation
+```
 Run the simulation:
 
-bash
-Copiar código
+```bash
 python pure_pursuit.py
+```
 Configuration
 The simulation can be configured by modifying the config.py file. You can adjust parameters such as the vehicle's dimensions, control methods, noise settings, and more.
 
