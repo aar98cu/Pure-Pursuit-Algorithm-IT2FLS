@@ -5,6 +5,7 @@ from config import *
 from vehicle import *
 import matplotlib.pyplot as plt
 import dearpygui.dearpygui as dpg
+import seaborn as sns
 
 # Adjust the size of the interface to fit the current viewport dimensions
 def fit_interface_size(sender, app_data):
@@ -73,21 +74,19 @@ steering_control_functions = {
 }
 
 # Calculate the vehicle speed using a PI controller from Robotics, Vision and Control book
-def velocity_pi_control(vel):
-    global PI_acc
+def velocity_pi_control(vel, PI_acc):
     vel_err = params["ld"]-look_ahead
     velocity = np.clip(PI_acc.control(vel_err), 0, dpg.get_value("speed_slider"))
     return velocity, vel_err
 
 # Calculate the vehicle speed using a PI controller
-def velocity_pi_control_2(vel):
-    global PI_acc
+def velocity_pi_control_2(vel,Pi_acc):
     vel_err = dpg.get_value("speed_slider")-vel
     velocity = np.clip(vel+PI_acc.control(vel_err)*dt, 0, dpg.get_value("speed_slider"))
     return velocity, vel_err
 
 # Calculate the vehicle speed using IT2FLS with 2 membership functions
-def velocity_it2fls_2mf(vel):
+def velocity_it2fls_2mf(vel, PI_acc):
     vel_err = params["ld"]-look_ahead
     acc = IT2FLS(n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((19,2)), mf_p=MF_parameters_it2mf2_vel, rules=Rules_it2mf2, c_p=C_parameters_it2mf2_vel)
     velocity = np.clip(acc.model(np.array([vel_err, params["d_velocity_error"]])), 0, dpg.get_value("speed_slider"))
@@ -105,8 +104,70 @@ velocity_control_functions = {
     "IT2FLS with 2MF": velocity_it2fls_2mf
 }
 
+def toggle_noise_settings(sender, app_data):
+    if dpg.get_value("noise_checkbox"):
+        dpg.show_item("max_speed_delta")
+        dpg.show_item("max_speed_delta_text")
+        dpg.show_item("steering")
+
+        if dpg.get_value("steering") == "Mathematical model":
+            dpg.show_item("max_steering_delta")
+            dpg.show_item("max_steering_delta_text")
+    else:
+        dpg.hide_item("max_speed_delta")
+        dpg.hide_item("max_speed_delta_text")
+        dpg.hide_item("steering")
+        dpg.hide_item("max_steering_delta")
+        dpg.hide_item("max_steering_delta_text")
+
+def mathematical_model(o_delta, n_delta):
+    delta_steering = n_delta - o_delta
+    if abs(delta_steering) > max_delta_steering:
+        delta_steering = max_delta_steering if delta_steering > 0 else -max_delta_steering
+    o_delta += delta_steering
+    return o_delta
+
+def transfer_function_model(o_delta, n_delta):
+    for i in range(5):
+        delta_error = n_delta - o_delta
+        control_signal = np.clip(41.3006023567974*delta_error, -255, 255)
+        o_delta = o_delta*0.9989+0.001911*control_signal
+    return o_delta
+
+def t1fm(o_delta, n_delta):
+    global previous_delta_error
+    steering = T1FLS(n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((16,1)), mf_p=MF_parameters_t1mf2_steering, rules=Rules_t1mf2, c_p=C_parameters_t1mf2_steering)
+
+    for i in range(5):
+        delta_error = n_delta - o_delta
+        control_signal = np.clip(0.8*delta_error+0.0001941*((delta_error-previous_delta_error)/dt), -1, 1)
+        control_signal = np.interp(control_signal, [-1, 1], [-255, 255])
+        previous_delta_error = delta_error
+        o_delta = steering.model(np.array([o_delta, control_signal]))
+    return o_delta
+
+# Dictionary mapping control types to their respective functions
+steering_mode_functions = {
+    "Mathematical model": mathematical_model,
+    "Transfer function model": transfer_function_model,
+    "T1FM": t1fm
+}
+
+# Update the selected steering mode
+def update_steering_mode(sender, app_data):
+    global steering_mode_func
+    steering_mode_func = steering_mode_functions[app_data]
+
+    selected_mode = app_data
+    if selected_mode == "Mathematical model":
+        dpg.show_item("max_steering_delta")
+        dpg.show_item("max_steering_delta_text")
+    else:
+        dpg.hide_item("max_steering_delta")
+        dpg.hide_item("max_steering_delta_text")
+
 # Function to run the simulation on the selected path with the chosen control settings    
-def run_simulation():
+def run_simulation(return_errors=False):
     global max_delta_steering, max_delta_speed
 
     # Disable interface elements during the simulation
@@ -117,6 +178,8 @@ def run_simulation():
     dpg.disable_item("control")
     dpg.disable_item("max_steering_delta")
     dpg.disable_item("max_speed_delta")
+    dpg.disable_item("speed")
+    dpg.disable_item("steering")
 
     # Update maximum steering and speed delta values from the interface
     max_delta_steering = math.radians(dpg.get_value("max_steering_delta"))
@@ -131,20 +194,22 @@ def run_simulation():
     traj = Trajectory(x_data, y_data)
     goal = traj.getPoint(len(x_data) - 1)
 
+    PI_acc = PI()
+
     # Initialize lists for tracking simulation metrics
     traj_ego_x, traj_ego_y = [], []
-    lateral_error_list = [0]
-    heading_error_list = [0]
-    velocity_error_list = [0]
-    speed_list = [0]
-    delta_list = [0]
+    lateral_error_list = []
+    heading_error_list = []
+    velocity_error_list = []
+    speed_list = []
+    delta_list = []
     index = 0
 
     # Define file path to save results
     file_path = f'./results/{dpg.get_value("control")} in {dpg.get_value("path")} {"with noise" if dpg.get_value("noise_checkbox") else "without noise"} and speed {dpg.get_value("speed_slider")}.txt'    
 
     with open(file_path, "w") as file:
-        #file.write("mse_lateral_error,mse_heading_error\n")
+        file.write("mse_lateral_error,mse_heading_error\n")
         
         while getDistance([ego.x, ego.y], goal) > 1 or index<len(x_data)-2:
             # Calculate the target point and update parameters
@@ -152,7 +217,7 @@ def run_simulation():
             params["ld"] = current
 
             # Update velocity control parameters
-            velocity, vel_err = velocity_control_func(ego.vel)
+            velocity, vel_err = velocity_control_func(ego.vel, PI_acc)
             velocity_error_list.append(vel_err)
             params["velocity_error"] = velocity_error_list[-1]
             params["d_velocity_error"] = (velocity_error_list[-1] - (velocity_error_list[-2] if len(velocity_error_list) > 1 else 0)) / dt
@@ -179,9 +244,9 @@ def run_simulation():
 
             traj_ego_x.append(ego.x)
             traj_ego_y.append(ego.y)
-
-            file.write(f'{(np.mean(np.square(lateral_error_list)))},{(math.degrees(np.mean(np.square(heading_error_list))))}\n')
-            #file.write(f'{params["velocity_error"]},{params["d_velocity_error"]},{ego.vel}\n')
+            
+            if return_errors!=True:
+                file.write(f'{(np.mean(np.square(lateral_error_list)))},{(math.degrees(np.mean(np.square(heading_error_list))))}\n')
 
             # Update interface values for real-time display
             dpg.set_value("x", f"X: {ego.x:.2f}m")
@@ -209,36 +274,106 @@ def run_simulation():
     dpg.enable_item("control")
     dpg.enable_item("max_steering_delta")
     dpg.enable_item("max_speed_delta")
+    dpg.enable_item("speed")
+    dpg.enable_item("steering")
 
-    # Plot simulation results
+    if return_errors==True:
+        return np.mean(np.square(lateral_error_list)), math.degrees(np.mean(np.square(heading_error_list)))
+    else:
+        # Plot simulation results
+        plt.figure()
+        plt.subplot(2, 2, 1)
+        plt.plot(speed_list, label='Speed')
+        plt.xlabel('Samples')
+        plt.ylabel('Speed (m/s)')
+        plt.legend()
+        plt.grid(True)
+
+        plt.subplot(2, 2, 2)
+        plt.plot(delta_list, label='Steering')
+        plt.xlabel('Samples')
+        plt.ylabel('Steering (degrees)')
+        plt.legend()
+        plt.grid(True)
+
+        plt.subplot(2, 2, 3)
+        plt.plot(lateral_error_list, label='Lateral Error')
+        plt.xlabel('Samples')
+        plt.ylabel('Lateral Error (m)')
+        plt.legend()
+        plt.grid(True)
+
+        plt.subplot(2, 2, 4)
+        plt.plot([math.degrees(angle) for angle in heading_error_list], label='Heading Error')
+        plt.xlabel('Samples')
+        plt.ylabel('Heading Error (degreess)')
+        plt.legend()
+        plt.grid(True)
+
+        plt.tight_layout()
+        plt.show()
+
+def run_multiple_simulations():
+    mse_lateral_errors = []
+    mse_heading_errors = []
+    
+    for _ in range(5):
+        mse_lateral, mse_heading = run_simulation(return_errors=True)
+        mse_lateral_errors.append(mse_lateral)
+        mse_heading_errors.append(mse_heading)
+
+    print(mse_lateral_errors)
+    print(mse_heading_errors)
+
+    avg_mse_lateral = np.mean(mse_lateral_errors)
+    avg_mse_heading = np.mean(mse_heading_errors)
+    std_mse_lateral = np.std(mse_lateral_errors)
+    std_mse_heading = np.std(mse_heading_errors)
+
+    """ Histograma
     plt.figure()
-    plt.subplot(2, 2, 1)
-    plt.plot(speed_list, label='Speed')
-    plt.xlabel('Samples')
-    plt.ylabel('Speed (m/s)')
-    plt.legend()
-    plt.grid(True)
+    plt.subplot(1, 2, 1)
+    plt.hist(mse_lateral_errors, bins=10, alpha=0.2, color='b')
+    plt.title('MSE Lateral Errors')
+    plt.xlabel('MSE Lateral Error')
+    plt.ylabel('Frequency')
+    plt.subplot(1, 2, 2)
+    plt.hist(mse_heading_errors, bins=10, alpha=0.7, color='r')
+    plt.title('MSE Heading Errors')
+    plt.xlabel('MSE Heading Error')
+    plt.ylabel('Frequency')
+    plt.tight_layout()
+    plt.show()
+    """
 
-    plt.subplot(2, 2, 2)
-    plt.plot(delta_list, label='Steering')
-    plt.xlabel('Samples')
-    plt.ylabel('Steering (degrees)')
-    plt.legend()
-    plt.grid(True)
+    """Violin
+    plt.figure(figsize=(10, 5))
+    plt.subplot(1, 2, 1)
+    sns.violinplot(data=mse_lateral_errors, color='b')
+    plt.title('MSE Lateral Errors')
+    plt.ylabel('MSE Lateral Error')
+    plt.subplot(1, 2, 2)
+    sns.violinplot(data=mse_heading_errors, color='r')
+    plt.title('MSE Heading Errors')
+    plt.ylabel('MSE Heading Error')
+    plt.tight_layout()
+    plt.show()
+    """
 
-    plt.subplot(2, 2, 3)
-    plt.plot(lateral_error_list, label='Lateral Error')
-    plt.xlabel('Samples')
-    plt.ylabel('Lateral Error (m)')
-    plt.legend()
-    plt.grid(True)
+    plt.figure(figsize=(10, 5))
 
-    plt.subplot(2, 2, 4)
-    plt.plot([math.degrees(angle) for angle in heading_error_list], label='Heading Error')
-    plt.xlabel('Samples')
-    plt.ylabel('Heading Error (degreess)')
-    plt.legend()
-    plt.grid(True)
+    plt.subplot(1, 2, 1)
+    plt.plot(range(1, len(mse_lateral_errors) + 1), mse_lateral_errors, marker='o', color='b', linestyle='-', markersize=6)
+    plt.title('MSE Lateral Errors per Test')
+    plt.xlabel('Test Number')
+    plt.ylabel('MSE Lateral Error')
+
+    # Crear el scatter plot para los errores de orientación con líneas
+    plt.subplot(1, 2, 2)
+    plt.plot(range(1, len(mse_heading_errors) + 1), mse_heading_errors, marker='o', color='r', linestyle='-', markersize=6)
+    plt.title('MSE Heading Errors per Test')
+    plt.xlabel('Test Number')
+    plt.ylabel('MSE Heading Error')
 
     plt.tight_layout()
     plt.show()
@@ -273,10 +408,13 @@ class Mathematic_Model:
         """
         if dpg.get_value("noise_checkbox"):
             # Apply steering and velocity constraints with noise
-            delta_steering = delta - self.delta
+
+            self.delta = steering_mode_func(self.delta, delta)
+
+            """delta_steering = delta - self.delta
             if abs(delta_steering) > max_delta_steering:
                 delta_steering = max_delta_steering if delta_steering > 0 else -max_delta_steering
-            self.delta += delta_steering
+            self.delta += delta_steering"""
 
             self.x += self.vel * math.cos(self.yaw) * dt + np.random.uniform(-noise_std_dev, noise_std_dev)
             self.y += self.vel * math.sin(self.yaw) * dt + np.random.uniform(-noise_std_dev, noise_std_dev)

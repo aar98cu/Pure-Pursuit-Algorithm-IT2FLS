@@ -69,6 +69,12 @@ paths = {
 }
 list_paths = ["Path 1", "Path 2", "Path 3", "Path 4"]  # List of available paths for selection
 
+# Steering mode variables
+# Lists available steering mode and initializes the selected control function to None.
+steering_mode = ["Mathematical model", "Transfer function model", "T1FM"]
+steering_mode_func = None  # Function pointer for the selected steering control method
+previous_delta_error = 0
+
 # Constants for an interval-type 2 fuzzy steering wheel controller with 2 membership functions
 # Parameters for an interval-type 2 fuzzy logic system (IT2FLS) with 2 membership functions.
 MF_parameters_it2mf2_delta = np.array([[0.091044, 0.03161, 1.0488, -0.21707, 0.15446],
@@ -144,6 +150,19 @@ C_parameters_it2mf2_vel = np.array([[-1.17582, -2.04875, -12.8161],
     [-23.4196, -2.02625, 87.2486],
     [-2.9969, 3.11659, 26.9546],
     [-38.3781, 3.18461, 19.6162]])
+
+
+# Constants for the type 1 fuzzy steering wheel model with 2 membership functions
+# Parameters for a Type-1 Fuzzy Logic System (T1FLS) with 2 membership functions.
+MF_parameters_t1mf2_steering = np.array([[0.5167, 1.985, -0.3764],
+    [0.4749, 2.015, 0.2903],
+    [242.5, 2.17, -243],
+    [242.5, 1.654, 242]])
+
+C_parameters_t1mf2_steering = np.array([[0.998, 0.001682, 0.179],
+    [0.9973, 0.002515, -0.3191],
+    [1.01, 0.004261, 0.2992],
+    [0.9853, 0.003636, -0.206]])
 
 
 # Theme for the vehicle
