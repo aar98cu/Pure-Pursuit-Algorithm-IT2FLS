@@ -14,7 +14,7 @@ with dpg.window(label="Pure Pursuit Algorithm Simulation", tag="window"):
         # Left panel for controls and information display
         with dpg.group(horizontal=False, tag="left_panel", width=int(0.2 * width), height=height):
             # Dropdown for selecting the path
-            dpg.add_combo(list_paths, default_value="Select path", width=-1, callback=update_trayectoria, tag="path")
+            dpg.add_combo(list_paths, default_value="Select path", width=-1, callback=update_path, tag="path")
         
             # Dropdown for selecting the steering control algorithm
             dpg.add_combo(steering_control, default_value="Select steering control", width=-1, callback=update_steering_control, tag="control")
@@ -56,6 +56,7 @@ with dpg.window(label="Pure Pursuit Algorithm Simulation", tag="window"):
             # Button to start the simulation
             dpg.add_button(label="Run Simulation", callback=run_simulation, width=150, height=50, tag="run_button")
 
+            # Button to start multiple simulations
             dpg.add_button(label="Run Multiple Simulations", callback=run_multiple_simulations, width=150, height=50, tag="run_multiple_button")
 
         # Right panel for plotting the simulation results
@@ -68,7 +69,7 @@ with dpg.window(label="Pure Pursuit Algorithm Simulation", tag="window"):
             plotVehicle(0,0,1.5708,0)
 
             # Plot for the selected path
-            dpg.add_line_series([], [], parent="yaxis", tag="trayectoria_plot")
+            dpg.add_line_series([], [], parent="yaxis", tag="path_plot")
             # Plot for the vehicle's reference trajectory
             dpg.add_line_series([], [], parent="yaxis", tag="reference_plot")
 

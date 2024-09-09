@@ -21,15 +21,17 @@ def fit_interface_size(sender, app_data):
     dpg.configure_item("right_panel", width=int(width * 0.77), height=int(height*0.9))
 
 # Update and display the selected path on the plot
-def update_trayectoria(sender, app_data):
+def update_path(sender, app_data):
     seleccion = app_data # Selected path from dropdown
     x_data, y_data = zip(*paths[seleccion]) # Extract x and y data points
     
     # Update the plot with the new path data
-    dpg.set_value("trayectoria_plot", [x_data, y_data])
-    dpg.bind_item_theme("trayectoria_plot", "path_theme")  # Apply the path theme
+    dpg.set_value("path_plot", [x_data, y_data])
+    dpg.bind_item_theme("path_plot", "path_theme")  # Apply the path theme
     dpg.fit_axis_data("xaxis") # Adjust the x-axis to fit the new data
     dpg.fit_axis_data("yaxis") # Adjust the y-axis to fit the new data
+
+    update_vehicle(x_data[0]-2,y_data[0]-2,1.5708,0)
 
 # Calculate the steering angle using geometric lateral control
 def steering_geometric_lateral_control():
@@ -104,6 +106,7 @@ velocity_control_functions = {
     "IT2FLS with 2MF": velocity_it2fls_2mf
 }
 
+# Toggles the visibility of noise-related settings based on the noise checkbox state.
 def toggle_noise_settings(sender, app_data):
     if dpg.get_value("noise_checkbox"):
         dpg.show_item("max_speed_delta")
@@ -120,6 +123,8 @@ def toggle_noise_settings(sender, app_data):
         dpg.hide_item("max_steering_delta")
         dpg.hide_item("max_steering_delta_text")
 
+# Updates the steering angle using a mathematical model.
+# This function calculates the steering change (delta_steering) between the new (n_delta) and old (o_delta) commands, ensuring it doesn't exceed the maximum limit (max_delta_steering).
 def mathematical_model(o_delta, n_delta):
     delta_steering = n_delta - o_delta
     if abs(delta_steering) > max_delta_steering:
@@ -127,6 +132,8 @@ def mathematical_model(o_delta, n_delta):
     o_delta += delta_steering
     return o_delta
 
+# Updates the steering angle using a transfer function model.
+# Simulates a real steering system using proportional control based on the error between the new (n_delta) and old (o_delta) steering angles. The control signal is calculated using a transfer function over 5 iterations, clipped to the range [-255, 255], with the old angle updated in each step.
 def transfer_function_model(o_delta, n_delta):
     for i in range(5):
         delta_error = n_delta - o_delta
@@ -134,6 +141,8 @@ def transfer_function_model(o_delta, n_delta):
         o_delta = o_delta*0.9989+0.001911*control_signal
     return o_delta
 
+# Updates the steering angle using a Type-1 Fuzzy Logic System (T1FLS).
+# The controller calculates the error between the new (n_delta) and old (o_delta) steering angles, applies a proportional-derivative (PD) control, and maps the control signal to the range [-255, 255].
 def t1fm(o_delta, n_delta):
     global previous_delta_error
     steering = T1FLS(n_inputs=2, n_mf=2, n_rules=4, nodes=np.zeros((16,1)), mf_p=MF_parameters_t1mf2_steering, rules=Rules_t1mf2, c_p=C_parameters_t1mf2_steering)
@@ -146,7 +155,7 @@ def t1fm(o_delta, n_delta):
         o_delta = steering.model(np.array([o_delta, control_signal]))
     return o_delta
 
-# Dictionary mapping control types to their respective functions
+# Dictionary mapping modes types to their respective functions
 steering_mode_functions = {
     "Mathematical model": mathematical_model,
     "Transfer function model": transfer_function_model,
@@ -185,15 +194,16 @@ def run_simulation(return_errors=False):
     max_delta_steering = math.radians(dpg.get_value("max_steering_delta"))
     max_delta_speed = dpg.get_value("max_speed_delta")
 
-    # Initialize vehicle model
-    ego =  Mathematic_Model(0,0,1.5708)
-
     # Extract x and y coordinates from the selected path
-    x_data, y_data = dpg.get_value("trayectoria_plot")
+    x_data, y_data = dpg.get_value("path_plot")
     path = np.stack((x_data, y_data), axis=-1)
     traj = Trajectory(x_data, y_data)
     goal = traj.getPoint(len(x_data) - 1)
 
+    # Initialize vehicle model
+    ego =  Mathematic_Model(x_data[0]-2,y_data[0]-2,1.5708)
+
+    # Initialize PI controller
     PI_acc = PI()
 
     # Initialize lists for tracking simulation metrics
@@ -278,6 +288,7 @@ def run_simulation(return_errors=False):
     dpg.enable_item("steering")
 
     if return_errors==True:
+        # Return the lateral error list and heading error list after running multiple simulations.
         return np.mean(np.square(lateral_error_list)), math.degrees(np.mean(np.square(heading_error_list)))
     else:
         # Plot simulation results
@@ -317,50 +328,21 @@ def run_multiple_simulations():
     mse_lateral_errors = []
     mse_heading_errors = []
     
-    for _ in range(5):
+    for _ in range(3):
         mse_lateral, mse_heading = run_simulation(return_errors=True)
         mse_lateral_errors.append(mse_lateral)
         mse_heading_errors.append(mse_heading)
-
-    print(mse_lateral_errors)
-    print(mse_heading_errors)
 
     avg_mse_lateral = np.mean(mse_lateral_errors)
     avg_mse_heading = np.mean(mse_heading_errors)
     std_mse_lateral = np.std(mse_lateral_errors)
     std_mse_heading = np.std(mse_heading_errors)
 
-    """ Histograma
-    plt.figure()
-    plt.subplot(1, 2, 1)
-    plt.hist(mse_lateral_errors, bins=10, alpha=0.2, color='b')
-    plt.title('MSE Lateral Errors')
-    plt.xlabel('MSE Lateral Error')
-    plt.ylabel('Frequency')
-    plt.subplot(1, 2, 2)
-    plt.hist(mse_heading_errors, bins=10, alpha=0.7, color='r')
-    plt.title('MSE Heading Errors')
-    plt.xlabel('MSE Heading Error')
-    plt.ylabel('Frequency')
-    plt.tight_layout()
-    plt.show()
-    """
+    print(f"Average MSE Lateral Error: {avg_mse_lateral:.4f} ± {std_mse_lateral:.4f}")
+    print(f"Average MSE Heading Error: {avg_mse_heading:.4f} ± {std_mse_heading:.4f}")
 
-    """Violin
-    plt.figure(figsize=(10, 5))
-    plt.subplot(1, 2, 1)
-    sns.violinplot(data=mse_lateral_errors, color='b')
-    plt.title('MSE Lateral Errors')
-    plt.ylabel('MSE Lateral Error')
-    plt.subplot(1, 2, 2)
-    sns.violinplot(data=mse_heading_errors, color='r')
-    plt.title('MSE Heading Errors')
-    plt.ylabel('MSE Heading Error')
-    plt.tight_layout()
-    plt.show()
-    """
-
-    plt.figure(figsize=(10, 5))
+    # Gráfico de línea comparativa para cada corrida
+    plt.figure(figsize=(12, 6))
 
     plt.subplot(1, 2, 1)
     plt.plot(range(1, len(mse_lateral_errors) + 1), mse_lateral_errors, marker='o', color='b', linestyle='-', markersize=6)
@@ -368,11 +350,26 @@ def run_multiple_simulations():
     plt.xlabel('Test Number')
     plt.ylabel('MSE Lateral Error')
 
-    # Crear el scatter plot para los errores de orientación con líneas
     plt.subplot(1, 2, 2)
     plt.plot(range(1, len(mse_heading_errors) + 1), mse_heading_errors, marker='o', color='r', linestyle='-', markersize=6)
     plt.title('MSE Heading Errors per Test')
     plt.xlabel('Test Number')
+    plt.ylabel('MSE Heading Error')
+
+    plt.tight_layout()
+    plt.show()
+
+    # Boxplot para mostrar la distribución de los errores
+    plt.figure(figsize=(12, 6))
+
+    plt.subplot(1, 2, 1)
+    sns.boxplot(data=mse_lateral_errors, color='b')
+    plt.title('MSE Lateral Errors (Boxplot)')
+    plt.ylabel('MSE Lateral Error')
+
+    plt.subplot(1, 2, 2)
+    sns.boxplot(data=mse_heading_errors, color='r')
+    plt.title('MSE Heading Errors (Boxplot)')
     plt.ylabel('MSE Heading Error')
 
     plt.tight_layout()

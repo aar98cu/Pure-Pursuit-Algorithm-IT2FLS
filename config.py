@@ -9,7 +9,7 @@ height = 900 # Window height in pixels
 # Vehicle parameters in meters
 # These parameters define the physical characteristics of the vehicle model.
 LENGTH = 2.2           # Length of the vehicle
-WIDTH = 1              # Width of the vehicle
+WIDTH = 1.2              # Width of the vehicle
 BACKTOWHEEL = 0.5      # Distance from the back of the vehicle to the rear wheel
 WHEEL_LEN = 0.3        # Length of the wheel
 WHEEL_WIDTH = 0.2      # Width of the wheel
