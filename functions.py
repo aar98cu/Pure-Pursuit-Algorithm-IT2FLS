@@ -70,9 +70,9 @@ def update_steering_control(sender, app_data):
 steering_control_functions = {
     "Geometric Lateral Control": steering_geometric_lateral_control,
     "Based on error": steering_based_on_error,
-    "IT2FLS with 2MF": steering_it2fls_2mf,
-    "IT2FLS with 3MF": steering_it2fls_3mf,
-    "T1FLS with 2MF": steering_t1fls_2mf
+    "T1FLC with 2MF": steering_t1fls_2mf,
+    "IT2FLC with 2MF": steering_it2fls_2mf,
+    "IT2FLC with 3MF": steering_it2fls_3mf
 }
 
 # Calculate the vehicle speed using a PI controller from Robotics, Vision and Control book
@@ -101,9 +101,9 @@ def update_velocity_control(sender, app_data):
 
 # Dictionary mapping control types to their respective functions
 velocity_control_functions = {
-    "PI control": velocity_pi_control,
-    "PI control 2": velocity_pi_control_2,
-    "IT2FLS with 2MF": velocity_it2fls_2mf
+    "PI Distance Control": velocity_pi_control,
+    "PI Velocity Control": velocity_pi_control_2,
+    "IT2FLC with 2MF": velocity_it2fls_2mf
 }
 
 # Toggles the visibility of noise-related settings based on the noise checkbox state.
@@ -159,7 +159,7 @@ def t1fm(o_delta, n_delta):
 steering_mode_functions = {
     "Mathematical model": mathematical_model,
     "Transfer function model": transfer_function_model,
-    "T1FM": t1fm
+    "T1FLS": t1fm
 }
 
 # Update the selected steering mode
