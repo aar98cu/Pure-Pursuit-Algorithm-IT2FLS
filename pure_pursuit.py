@@ -77,6 +77,8 @@ with dpg.window(label="Pure Pursuit Algorithm Simulation", tag="window"):
             dpg.fit_axis_data("xaxis")
             dpg.fit_axis_data("yaxis")
 
+dpg.bind_item_theme("right_panel", "plot_theme")
+
 # Create and setup the viewport (application window)
 dpg.create_viewport(title='Pure Pursuit Algorithm IT2FLS', width=width, height=height)
 dpg.setup_dearpygui()
