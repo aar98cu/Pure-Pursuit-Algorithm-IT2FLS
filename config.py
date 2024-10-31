@@ -27,7 +27,7 @@ noise_matrix = np.round(np.random.uniform(-noise_std_dev, noise_std_dev, 100000)
 
 # Steering control variables
 # Lists available steering control algorithms and initializes the selected control function to None.
-steering_control = ["Geometric Lateral Control", "Based on error", "T1FLC with 2MF", "IT2FLC with 2MF", "IT2FLC with 3MF"]
+steering_control = ["Geometric Lateral Control", "Error-based controller", "T1FLC with 2MF", "IT2FLC with 2MF", "IT2FLC with 3MF"]
 steering_control_func = None  # Function pointer for the selected steering control method
 
 # Velocity control variables
@@ -72,7 +72,7 @@ list_paths = ["Path 1", "Path 2", "Path 3", "Path 4"]  # List of available paths
 
 # Steering mode variables
 # Lists available steering mode and initializes the selected control function to None.
-steering_mode = ["Mathematical model", "Transfer function model", "T1FLS"]
+steering_mode = ["Steering angle restriction", "Transfer function model", "T1FLS"]
 steering_mode_func = None  # Function pointer for the selected steering control method
 previous_delta_error = 0
 

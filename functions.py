@@ -73,7 +73,7 @@ def update_steering_control(sender, app_data):
 # Dictionary mapping steering control names to their corresponding functions
 steering_control_functions = {
     "Geometric Lateral Control": steering_geometric_lateral_control,
-    "Based on error": steering_based_on_error,
+    "Error-based controller": steering_based_on_error,
     "T1FLC with 2MF": steering_t1fls_2mf,
     "IT2FLC with 2MF": steering_it2fls_2mf,
     "IT2FLC with 3MF": steering_it2fls_3mf
@@ -161,7 +161,7 @@ def t1fm(o_delta, n_delta):
 
 # Dictionary mapping modes types to their respective functions
 steering_mode_functions = {
-    "Mathematical model": mathematical_model,
+    "Steering angle restriction": mathematical_model,
     "Transfer function model": transfer_function_model,
     "T1FLS": t1fm
 }
@@ -172,7 +172,7 @@ def update_steering_mode(sender, app_data):
     steering_mode_func = steering_mode_functions[app_data]
 
     selected_mode = app_data
-    if selected_mode == "Mathematical model":
+    if selected_mode == "Steering angle restriction":
         dpg.show_item("max_steering_delta")
         dpg.show_item("max_steering_delta_text")
     else:
@@ -235,8 +235,8 @@ def run_simulation(return_errors=False, n_iterations=1):
         subfoler_name = f'{abbreviate_name(dpg.get_value("steering"))+"_" if dpg.get_value("noise_checkbox") else ""}{abbreviate_name(dpg.get_value("speed"))}'
         folder_name = f'./multi_results/{dpg.get_value("path")}{"WN" if dpg.get_value("noise_checkbox") else ""}/{subfoler_name}'
         txt_path = f'{folder_name}.txt'
-        file_path = f'{folder_name}/{subfoler_name}_{abbreviate_name(dpg.get_value("control"))}.csv'
-        image_path = f'{folder_name}/{subfoler_name}_{abbreviate_name(dpg.get_value("control"))}.png'
+        file_path = f'{folder_name}/{abbreviate_name(dpg.get_value("path"))}_{subfoler_name}_{abbreviate_name(dpg.get_value("control"))}.csv'
+        image_path = f'{folder_name}/{abbreviate_name(dpg.get_value("path"))}_{subfoler_name}_{abbreviate_name(dpg.get_value("control"))}.png'
 
     os.makedirs(folder_name, exist_ok=True)
 
@@ -293,9 +293,9 @@ def run_simulation(return_errors=False, n_iterations=1):
             dpg.set_value("v", f"V: {ego.vel:.2f}m/s")
             dpg.set_value("delta", f"Delta: {math.degrees(ego.delta):.2f}°")
             dpg.set_value("le", f"Lateral error: {lateral_error_list[-1]:.2f}m")
-            dpg.set_value("msele", f"MSE lateral: {mse_lateral_error_list}m")
+            dpg.set_value("msele", f"MSE lateral: {mse_lateral_error_list}")
             dpg.set_value("he", f"Heading error: {math.degrees(heading_error_list[-1]):.2f}°")
-            dpg.set_value("msehe", f"MSE heading: {mse_heading_error_list}°")
+            dpg.set_value("msehe", f"MSE heading: {mse_heading_error_list}")
             
             update_vehicle(ego.x, ego.y, ego.yaw, ego.delta)
             dpg.set_value("reference_plot", [traj_ego_x, traj_ego_y])
