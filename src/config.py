@@ -1,5 +1,4 @@
 import numpy as np
-import dearpygui.dearpygui as dpg
 
 # Interface parameters
 # These parameters define the size of the application window.
@@ -23,17 +22,16 @@ dt = 0.1                       # Time step for simulation updates (in seconds)
 noise_std_dev = 0.02           # Standard deviation of the Gaussian noise added to measurements
 max_delta_speed = 0.05         # Maximum change in speed per time step (in meters per second)
 max_delta_steering = 0.0523599 # Maximum change in steering angle per time step (in radians)
-noise_matrix = np.round(np.random.uniform(-noise_std_dev, noise_std_dev, 100000), 4)
+NOISE_MATRIX_SIZE = 10000
+noise_matrix = np.round(np.random.uniform(-noise_std_dev, noise_std_dev, NOISE_MATRIX_SIZE), 4)
 
 # Steering control variables
 # Lists available steering control algorithms and initializes the selected control function to None.
 steering_control = ["Geometric Lateral Control", "Error-based controller", "T1FLC with 2MF", "IT2FLC with 2MF", "IT2FLC with 3MF"]
-steering_control_func = None  # Function pointer for the selected steering control method
 
 # Velocity control variables
 # Lists available velocity control algorithms and initializes the selected control function to None.
 velocity_control = ["PI Distance Control", "PI Velocity Control", "IT2FLC with 2MF"]
-velocity_control_func = None  # Function pointer for the selected velocity control method
 
 # Control parameters
 # This dictionary holds the state variables for the control algorithms.
@@ -45,13 +43,12 @@ params = {
     "ld": 0.0,                  # Look-ahead distance (dynamic during simulation)
 }
 
-# Interface color parameters
-# Defines the colors and sizes for different elements in the simulation interface.
-PATH_THEME_COLOR = (0, 0, 255)              # Color for the vehicle's planned path (blue)
-REFERENCE_THEME_COLOR = (255, 0, 0)         # Color for the reference path (red)
-VEHICLE_THEME_COLOR = (0, 0, 0)             # Color for the vehicle representation (black)
-ORIGIN_MARKER_SIZE = 15                     # Size of the origin marker
-ORIGIN_MARKER_COLOR = (255, 0, 0)           # Color of the origin marker (red)
+# Interface color parameters (tuned for dark theme)
+PATH_THEME_COLOR = (0, 190, 255)                # Cyan — reference path
+REFERENCE_THEME_COLOR = (166, 227, 161)         # Green — vehicle trajectory
+VEHICLE_THEME_COLOR = (205, 214, 244)           # Light — vehicle body
+ORIGIN_MARKER_SIZE = 15
+ORIGIN_MARKER_COLOR = (250, 179, 135)           # Peach — origin dot
 
 # x, y coordinates of the different paths
 # These lists define various pre-set paths that the vehicle can follow during the simulation.
@@ -71,10 +68,7 @@ paths = {
 list_paths = ["Path 1", "Path 2", "Path 3", "Path 4"]  # List of available paths for selection
 
 # Steering mode variables
-# Lists available steering mode and initializes the selected control function to None.
 steering_mode = ["Steering angle restriction", "Transfer function model", "T1FLS"]
-steering_mode_func = None  # Function pointer for the selected steering control method
-previous_delta_error = 0
 
 # Constants for an interval-type 2 fuzzy steering wheel controller with 2 membership functions
 # Parameters for an interval-type 2 fuzzy logic system (IT2FLS) with 2 membership functions.
@@ -164,62 +158,76 @@ C_parameters_t1mf2_steering = np.array([[0.998, 0.001682, 0.179],
     [0.9973, 0.002515, -0.3191],
     [1.01, 0.004261, 0.2992],
     [0.9853, 0.003636, -0.206]])
-
-
-# Theme for the vehicle
-# Sets the visual style for the vehicle's representation in the plot.
-with dpg.theme(tag="vehicle_theme"):
-    with dpg.theme_component(dpg.mvLineSeries):
-        dpg.add_theme_color(dpg.mvPlotCol_Line, VEHICLE_THEME_COLOR, category=dpg.mvThemeCat_Plots)
-        dpg.add_theme_style(dpg.mvPlotStyleVar_LineWeight, 8, category=dpg.mvThemeCat_Plots)
-
-# Theme for the path
-# Sets the visual style for the path that the vehicle will follow.
-with dpg.theme(tag="path_theme"):
-    with dpg.theme_component(dpg.mvLineSeries):
-        dpg.add_theme_color(dpg.mvPlotCol_Line, PATH_THEME_COLOR, category=dpg.mvThemeCat_Plots)
-        dpg.add_theme_style(dpg.mvPlotStyleVar_LineWeight, 8, category=dpg.mvThemeCat_Plots)
-
-# Theme for the reference path
-# Sets the visual style for the reference path.
-with dpg.theme(tag="reference_theme"):
-    with dpg.theme_component(dpg.mvLineSeries):
-        dpg.add_theme_color(dpg.mvPlotCol_Line, REFERENCE_THEME_COLOR, category=dpg.mvThemeCat_Plots)
-        dpg.add_theme_style(dpg.mvPlotStyleVar_LineWeight, 8, category=dpg.mvThemeCat_Plots)
-
-# General interface theme
-# Defines the color scheme and style for the application interface.
-with dpg.theme(tag="interface_theme"):
-    with dpg.theme_component(dpg.mvAll):
-        dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (255, 255, 255, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (200, 200, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_Text, (0, 0, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_Border, (200, 200, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_TitleBg, (200, 200, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_TitleBgActive, (200, 200, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_SliderGrabActive, (0, 0, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_SliderGrab, (0, 0, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_TitleBgCollapsed, (200, 200, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_BorderShadow, (200, 200, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_FrameBgHovered, (255, 255, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (255, 255, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (255, 255, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_Button, (150, 150, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_FrameBgActive, (255, 255, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_CheckMark, (0, 0, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_PopupBg, (200, 200, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_HeaderHovered, (255, 255, 0, 255))
-        dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, (255, 255, 0, 255))
-        dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 10, 10)
-        dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 5)
-        dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 10, 10)
-
-with dpg.theme(tag="plot_theme"):
-    with dpg.theme_component(dpg.mvPlot):
-        dpg.add_theme_color(dpg.mvPlotCol_FrameBg, (255, 255, 255, 255), category=dpg.mvThemeCat_Plots)
-        dpg.add_theme_color(dpg.mvPlotCol_PlotBg, (255, 255, 255, 255), category=dpg.mvThemeCat_Plots)
-        dpg.add_theme_color(dpg.mvPlotCol_PlotBorder, (0, 0, 0, 255), category=dpg.mvThemeCat_Plots)
-
-# Global font scale
-# Sets the global font scale to 1.5 for all text elements in the interface.
-dpg.set_global_font_scale(1.5)
+# ---------------------------------------------------------------------------
+# Multilingual Support (ES / EN)
+# ---------------------------------------------------------------------------
+TRANSLATIONS = {
+    "ES": {
+        "title": "Simulador Pure Pursuit IT2FLS — Tesis Doctoral",
+        "subtitle": "Marco de Simulación Avanzada v2.0",
+        "start": "INICIAR SIMULACIÓN",
+        "batch": "MUESTRAS",
+        "dark_mode": "Modo Oscuro",
+        "lang": "Idioma",
+        "trajectory": "SELECCIÓN DE TRAYECTORIA",
+        "route": "Ruta",
+        "control": "ARQUITECTURA DE CONTROL",
+        "lateral": "Estrategia Lateral",
+        "velocity": "Estrategia de Velocidad",
+        "uncertainty": "PARÁMETROS DE INCERTIDUMBRE",
+        "noise": "Aplicar Ruido de Medida",
+        "dynamics": "Dinámica de Dirección",
+        "max_steer": "Δ Máximo Dirección (°)",
+        "max_speed": "Δ Máximo Velocidad (m/s)",
+        "limits": "LÍMITES OPERACIONALES",
+        "setpoint": "Consigna",
+        "inference": "LÓGICA DE INFERENCIA",
+        "fou_desc": "**FOU (Footprint of Uncertainty)**: El área sombreada representa el intervalo de incertidumbre del Tipo-2.",
+        "enabled_desc": "**Habilitado**: Visualizando grados de disparo en tiempo real.",
+        "yaw_error": "Error de Guiado (rad)",
+        "dyaw_error": "Derivada Error (rad/s)",
+        "firing": "Grado Disparo",
+        "active_inf": "Inferencia Difusa Activa",
+        "idle": "ESPERA",
+        "simulating": "SIMULANDO...",
+        "success": "ÉXITO",
+        "mse_lat": "MSE LATERAL",
+        "mse_head": "MSE DIRECCIÓN",
+        "vel": "VELOCIDAD",
+        "theta": "THETA",
+    },
+    "EN": {
+        "title": "Pure Pursuit IT2FLS Simulator — Doctoral Thesis",
+        "subtitle": "Advanced Simulation Framework v2.0",
+        "start": "START SIMULATION",
+        "batch": "BATCH RUN",
+        "dark_mode": "Dark Mode",
+        "lang": "Language",
+        "trajectory": "TRAJECTORY SELECTION",
+        "route": "Route",
+        "control": "CONTROL ARCHITECTURE",
+        "lateral": "Lateral Strategy",
+        "velocity": "Velocity Strategy",
+        "uncertainty": "UNCERTAINTY PARAMETERS",
+        "noise": "Apply Measurement Noise",
+        "dynamics": "Steering Dynamics",
+        "max_steer": "Max Δ Steering (°)",
+        "max_speed": "Max Δ Velocity (m/s)",
+        "limits": "OPERATIONAL LIMITS",
+        "setpoint": "Set Point",
+        "inference": "INFERENCE LOGIC",
+        "fou_desc": "**FOU (Footprint of Uncertainty)**: The shaded area represents the uncertainty interval of Type-2.",
+        "enabled_desc": "**Enabled**: Visualizing firing degrees in real-time.",
+        "yaw_error": "Yaw Error (rad)",
+        "dyaw_error": "d_Yaw Error (rad/s)",
+        "firing": "Firing Degree",
+        "active_inf": "Active Fuzzy Inference",
+        "idle": "IDLE",
+        "simulating": "SIMULATING...",
+        "success": "SUCCESS",
+        "mse_lat": "MSE LATERAL",
+        "mse_head": "MSE HEADING",
+        "vel": "VELOCITY",
+        "theta": "THETA",
+    }
+}

@@ -1,0 +1,25 @@
+% Requiere: \usepackage{multirow}, \usepackage{booktabs}, \usepackage[table]{xcolor}
+\begin{table}[ht]
+\centering
+\caption{MAE del error lateral y de cabeceo en la Path 1 bajo condiciones de ruido}
+\small
+\begin{tabular}{llccccc}
+\toprule
+\multirow{2}{*}{Modelo del volante} & \multirow{2}{*}{Control de velocidad} & \multicolumn{5}{c}{Control del volante} \\ \cmidrule{3-7}
+ & & GLC & EBC & T1FLC 2MF & IT2FLC 2MF & IT2FLC 3MF \\
+\midrule
+\multirow{3}{*}{Restricción del ángulo de dirección} & PIDC & \begin{tabular}[c]{@{}c@{}}0.0862 m \\ 5.2865^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0911 m \\ 4.5511^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.2089 m \\ 13.0137^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0634 m \\ 3.6879^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.1623 m \\ 9.2523^\circ\end{tabular} \\
+ &  & PIVC & - & \begin{tabular}[c]{@{}c@{}}0.1265 m \\ 6.7180^\circ\end{tabular} & - & \begin{tabular}[c]{@{}c@{}}0.1328 m \\ 8.9074^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.2054 m \\ 10.5187^\circ\end{tabular} \\
+ &  & IT2FLC 2MF & \begin{tabular}[c]{@{}c@{}}0.0964 m \\ 3.7589^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0879 m \\ 3.5406^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.2465 m \\ 13.2842^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0680 m \\ 2.8722^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.1667 m \\ 7.6638^\circ\end{tabular} \\
+\midrule
+\multirow{3}{*}{Modelo en función de transferencia} & PIDC & \begin{tabular}[c]{@{}c@{}}0.0519 m \\ 3.1454^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0871 m \\ 4.8392^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.2760 m \\ 14.6219^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0556 m \\ 3.5068^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.1440 m \\ 8.4453^\circ\end{tabular} \\
+ &  & PIVC & \begin{tabular}[c]{@{}c@{}}0.0597 m \\ 4.1215^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.1168 m \\ 6.5457^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.3270 m \\ 16.8187^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0629 m \\ 4.0537^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.1915 m \\ 9.7483^\circ\end{tabular} \\
+ &  & IT2FLC 2MF & \begin{tabular}[c]{@{}c@{}}0.0493 m \\ 2.1093^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0875 m \\ 3.5266^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.2581 m \\ 13.1773^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0569 m \\ 2.4568^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.1623 m \\ 7.7933^\circ\end{tabular} \\
+\midrule
+\multirow{3}{*}{T1FLS} & PIDC & \begin{tabular}[c]{@{}c@{}}0.0455 m \\ 1.9949^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0811 m \\ 3.5397^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0519 m \\ 2.3384^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0561 m \\ 2.5036^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0690 m \\ 3.0629^\circ\end{tabular} \\
+ &  & PIVC & \begin{tabular}[c]{@{}c@{}}0.0475 m \\ 2.0169^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0803 m \\ 3.5225^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0523 m \\ 2.3068^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0564 m \\ 2.5488^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.1455 m \\ 7.9148^\circ\end{tabular} \\
+ &  & IT2FLC 2MF & \begin{tabular}[c]{@{}c@{}}0.0565 m \\ 1.9021^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0909 m \\ 3.1365^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0644 m \\ 2.1529^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0678 m \\ 2.3406^\circ\end{tabular} & \begin{tabular}[c]{@{}c@{}}0.0788 m \\ 2.6936^\circ\end{tabular} \\
+\midrule
+\bottomrule
+\end{tabular}
+\end{table}
