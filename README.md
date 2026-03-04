@@ -66,5 +66,5 @@ The framework allows simulating real-world sensor inaccuracies through:
 For mathematical details on the IT2FLS implementation, please refer to the `docs/` folder.
 
 ---
-**Lead Developer:** Adrian Alberto Cuba  
+**Lead Developer:** M.Sc. in Mechatronics Adrian Alberto Rodriguez  
 **Contact:** [adriancuba1998@gmail.com](mailto:adriancuba1998@gmail.com)
