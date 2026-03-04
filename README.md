@@ -1,69 +1,70 @@
-🚜 Pure Pursuit Algorithm Simulation
-This repository contains the code for simulating a vehicle's trajectory using different lateral and velocity control methods under varying conditions. The simulation is built using DearPyGUI for the interface and includes options for noise simulation to replicate real-world conditions.
+# 🚜 Pure Pursuit Framework: IT2FLS & T1FLS Research Suite
 
-📂 Project Structure
+This repository contains an advanced simulation environment for **Pure Pursuit** path tracking algorithms, specifically focused on **Interval Type-2 Fuzzy Logic Controllers (IT2FLS)** and **Type-1 FLC**. Designed for academic and doctoral research, it provides high-fidelity visualization, noise simulation, and batch benchmarking.
+
+## � Project Structure
+
+Organized following software engineering best practices for research projects:
+
 ```bash
 .
-├── pure_pursuit.py          # Main interface and simulation control
-├── functions.py             # Core functions and control methods
-├── config.py                # Configuration and parameters
-├── vehicle.py               # Vehicle model and dynamics
-├── results/                 # Directory for simulation results
-└── README.md                # This readme file
+├── app.py                # Modern Web-based Dashboard (NiceGUI + Plotly)
+├── pure_pursuit.py       # Legacy Native GUI (DearPyGui)
+├── requirements.txt      # Project dependencies
+├── src/                  # Core source code
+│   ├── config.py         # Hyperparameters & Path data
+│   ├── functions.py      # FLS Models & Control logic
+│   ├── vehicle.py        # Kinematic models & Geometry
+│   └── themes.py         # UI Styling & Palettes
+├── data/                 # Extended trajectory datasets (CSV/JSON)
+├── results/              # Simulation outputs
+│   ├── simple/           # Single run logs and plots
+│   └── multi/            # Batch benchmark statistics
+└── docs/                 # Mathematical background & Thesis notes
 ```
-🚀 Getting Started
-Prerequisites
-Ensure you have Python 3.8+ installed along with the following libraries:
 
-DearPyGUI
-Numpy
-Matplotlib
-You can install the necessary packages using pip:
+## 🚀 Getting Started
+
+### Prerequisites
+- Python 3.9+
+- Dependencies: `nicegui`, `plotly`, `dearpygui`, `numpy`, `pyautogui`
 
 ```bash
-pip install dearpygui numpy matplotlib
+pip install -r requirements.txt
 ```
-Running the Simulation
-Clone the repository:
 
+### Running the Environment
+
+#### 1. Research Dashboard (Recommended)
+A modern web-based interface with zoomable plots, light/dark mode, and detailed strategy descriptions.
 ```bash
-git clone https://github.com/aar98cu/Pure-Pursuit-Algorithm-IT2FLS.git
-cd Pure-Pursuit-Algorithm-IT2FLS
+python app.py
 ```
-Run the simulation:
+*Access via browser at `http://localhost:8080`*
 
+#### 2. Native Desktop Simulation
+High-performance native window implementation.
 ```bash
 python pure_pursuit.py
 ```
-Configuration
-The simulation can be configured by modifying the config.py file. You can adjust parameters such as the vehicle's dimensions, control methods, noise settings, and more.
 
-Simulation Controls
-Path Selection: Choose from predefined paths.
-Steering Control: Select the method for steering control (Geometric, Error-based, IT2FLS, etc.).
-Velocity Control: Select the method for velocity control (PI control, IT2FLS, etc.).
-Noise Simulation: Enable or disable noise to simulate real-world inaccuracies.
-Maximum Speed & Deltas: Adjust the maximum speed and the delta values for steering and speed.
-Results
-Simulation results are saved in the results/ directory, with file names indicating the control method, path, noise setting, and maximum speed. You can analyze these results using the built-in plotting functions or externally in tools like Excel or Python scripts.
+## 🧠 Control Strategies Included
 
-📊 Analyzing Multiple Simulations
-The simulation can be run multiple times to generate statistical data for comparison. Modify the run_multiple_simulations function in functions.py to execute the simulation repeatedly and analyze the results.
+- **Geometric Lateral Control**: Traditional Pure Pursuit implementation.
+- **T1FLC**: Type-1 Fuzzy Logic with optimized Gaussian membership functions.
+- **IT2FLC (2MF/3MF)**: Interval Type-2 Fuzzy Logic for handling extreme uncertainty and non-linearities.
+- **PI Distance/Velocity**: Classical linear control benchmarks.
 
-✨ Features
-Multiple lateral and velocity control methods.
-Realistic noise simulation to mimic real-world conditions.
-Statistical analysis and visualization of simulation results.
-Customizable interface with DearPyGUI.
-🛠️ To-Do
- Add support for additional control algorithms.
- Improve real-time visualization of the simulation.
- Implement a more sophisticated analysis pipeline.
-📝 License
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 📊 Uncertainty & Noise
+The framework allows simulating real-world sensor inaccuracies through:
+- Pre-allocated Gaussian noise matrices.
+- Steering dynamic restrictions (Transfer functions).
+- Measurement time-step jitter.
 
-🤝 Contributing
-Contributions, issues, and feature requests are welcome! Feel free to check the issues page for open issues or create a new one.
+## 📝 Research & Citations
+*This project is part of a Doctoral Research initiative on Autonomous Vehicle Control.*
+For mathematical details on the IT2FLS implementation, please refer to the `docs/` folder.
 
-📧 Contact
-For any questions, feel free to reach out at adriancuba1998@gmail.com
+---
+**Lead Developer:** Adrian Alberto Cuba  
+**Contact:** [adriancuba1998@gmail.com](mailto:adriancuba1998@gmail.com)
