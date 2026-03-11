@@ -472,7 +472,10 @@ def update_path(sender, app_data):
         dpg.bind_item_theme("path_plot", "path_theme")
         dpg.fit_axis_data("xaxis")
         dpg.fit_axis_data("yaxis")
-    update_vehicle(x_data[0] - 2, y_data[0] - 2, 1.5708, 0)
+    init_yaw = math.atan2(y_data[1] - y_data[0], x_data[1] - x_data[0])
+    start_x = x_data[0] - 3.0 * math.cos(init_yaw)
+    start_y = y_data[0] - 3.0 * math.sin(init_yaw)
+    update_vehicle(start_x, start_y, init_yaw, 0)
 
 def update_steering_control(sender, app_data):
     global _steering_control_func
@@ -542,9 +545,13 @@ def run_simulation(return_errors=False, n_iterations=1):
     traj = Trajectory(x_data, y_data)
     goal = traj.getPoint(len(x_data) - 1)
 
+    init_yaw = math.atan2(y_data[1] - y_data[0], x_data[1] - x_data[0])
+    start_x = x_data[0] - 3.0 * math.cos(init_yaw)
+    start_y = y_data[0] - 3.0 * math.sin(init_yaw)
+
     ego = Mathematic_Model(
-        x_data[0] - 3, y_data[0] - 3,
-        math.atan2(y_data[1] - y_data[0], x_data[1] - x_data[0]),
+        start_x, start_y,
+        init_yaw,
     )
     pi_ctrl = PI()
 
@@ -829,11 +836,12 @@ def run_multiple_simulations():
                         else:
                             storage[key] = ("-", "-")
         
-        # Build 3 reports per path
+        # Build 3 reports per path in the main route folder (one level up from last_folder)
         if last_folder:
-            generate_thesis_reports(mse_res, path_name, last_folder, "MSE")
-            generate_thesis_reports(mae_res, path_name, last_folder, "MAE")
-            generate_thesis_reports(rmse_res, path_name, last_folder, "RMSE")
+            route_folder = os.path.dirname(last_folder)
+            generate_thesis_reports(mse_res, path_name, route_folder, "MSE")
+            generate_thesis_reports(mae_res, path_name, route_folder, "MAE")
+            generate_thesis_reports(rmse_res, path_name, route_folder, "RMSE")
 
 
 # ---------------------------------------------------------------------------

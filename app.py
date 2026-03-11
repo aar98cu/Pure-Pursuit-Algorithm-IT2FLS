@@ -294,7 +294,10 @@ def main_page():
         xd, yd = zip(*paths[path_sel.value])
         path_arr = np.stack((xd, yd), axis=-1)
         traj = Trajectory(xd, yd); goal = traj.getPoint(len(xd)-1)
-        ego = Vehicle(xd[0]-3, yd[0]-3, math.atan2(yd[1]-yd[0], xd[1]-xd[0]))
+        init_yaw = math.atan2(yd[1]-yd[0], xd[1]-xd[0])
+        start_x = xd[0] - 3.0 * math.cos(init_yaw)
+        start_y = yd[0] - 3.0 * math.sin(init_yaw)
+        ego = Vehicle(start_x, start_y, init_yaw)
         pi_c = PI(); max_sp = speed_sl.value
         noise_on = noise_cb.value
         mode_fn = MODE_FNS.get(mode_sel.value) if noise_on else None
